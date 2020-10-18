@@ -1,0 +1,27 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+
+
+class CreateSmCustomers extends Migration{
+
+    public function up(){
+
+
+        Schema::create('sm_customers', static function(Blueprint $table){
+            $table->increments('id');
+            $table->string('customer_id')->unique(); // Code of the customer, id of corresponding person in MPM
+            $table->integer('mpm_customer_id')->unique(); // Code of the customer, id of corresponding person in MPM
+            $table->string('hash')->nullable();
+            $table->timestamps();
+        });
+        }
+
+
+    public function down(){
+        Schema::dropIfExists('sm_customers');
+    }
+
+}
