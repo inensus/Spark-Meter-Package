@@ -29,8 +29,7 @@
         "laravel": {
             "providers": [
                 "Inensus\\SparkMeter\\app\\providers\\SparkMeterServiceProvider",
-                "Inensus\\SparkMeter\\app\\providers\\EventServiceProvider",
-
+                "Inensus\\SparkMeter\\app\\providers\\EventServiceProvider"
             ]
         }
     }
