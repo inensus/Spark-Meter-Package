@@ -1,17 +1,17 @@
 <?php
 
-namespace Inensus\SparkMeter\providers;
+namespace Inensus\SparkMeter\Providers;
 
 use GuzzleHttp\Client;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use Inensus\SparkMeter\app\Console\Commands\InstallSparkMeterPackage;
-use Inensus\SparkMeter\app\Console\Commands\SparkMeterTransactionStatusCheck;
-use Inensus\SparkMeter\app\Console\Kernel;
-use Inensus\SparkMeter\app\Helpers\ResultStatusChecker;
-use Inensus\SparkMeter\app\Http\Requests\SparkMeterApiRequests;
-use Inensus\SparkMeter\app\Services\TransactionService;
+use Inensus\SparkMeter\Console\Commands\InstallSparkMeterPackage;
+use Inensus\SparkMeter\Console\Commands\SparkMeterTransactionStatusCheck;
+use Inensus\SparkMeter\Console\Kernel;
+use Inensus\SparkMeter\Helpers\ResultStatusChecker;
+use Inensus\SparkMeter\Http\Requests\SparkMeterApiRequests;
+use Inensus\SparkMeter\Services\TransactionService;
 
 use Inensus\SparkMeter\SparkMeterApi;
 

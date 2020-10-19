@@ -5,8 +5,8 @@ namespace Inensus\SparkMeter\Providers;
 
  use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
- use Inensus\SparkMeter\App\Listeners\MeterParameterListener;
- use Inensus\SparkMeter\App\Listeners\TransactionListener;
+ use Inensus\SparkMeter\Listeners\MeterParameterListener;
+ use Inensus\SparkMeter\Listeners\TransactionListener;
 
  class EventServiceProvider extends ServiceProvider
 {

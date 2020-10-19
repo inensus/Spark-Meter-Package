@@ -8,7 +8,7 @@ use Illuminate\Foundation\Support\Providers\RouteServiceProvider as ServiceProvi
 
 class SparkMeterRouteServiceProvider extends ServiceProvider
 {
-    protected $namespace = 'Inensus\SparkMeter\app\Http\Controllers';
+    protected $namespace = 'Inensus\SparkMeter\Http\Controllers';
 
     public function boot()
     {

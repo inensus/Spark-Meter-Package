@@ -4,9 +4,9 @@ use App\Models\GeographicalInformation;
 use App\Models\Meter\MeterTariff;
 use App\Models\Person\Person;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Inensus\SparkMeter\app\Observers\GeographicalInformationsObserver;
-use Inensus\SparkMeter\app\Observers\MeterTariffObserver;
-use Inensus\SparkMeter\app\Observers\PersonObserver;
+use Inensus\SparkMeter\Observers\GeographicalInformationsObserver;
+use Inensus\SparkMeter\Observers\MeterTariffObserver;
+use Inensus\SparkMeter\Observers\PersonObserver;
 
 class ObserverServiceProvider  extends ServiceProvider
 {
