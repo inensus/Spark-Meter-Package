@@ -40,7 +40,7 @@ class InstallSparkMeterPackage extends Command
 
         $this->info('Copying migrations\n');
         $this->call('vendor:publish', [
-             '--provider' => "Inensus\SparkMeter\providers\SparkMeterServiceProvider",
+             '--provider' => "Inensus\SparkMeter\Providers\SparkMeterServiceProvider",
              '--tag' => "migrations"
          ]);
 
@@ -49,7 +49,7 @@ class InstallSparkMeterPackage extends Command
 
         $this->info('Copying vue files\n');
         $this->call('vendor:publish', [
-            '--provider' => "Inensus\SparkMeter\providers\SparkMeterServiceProvider",
+            '--provider' => "Inensus\SparkMeter\Providers\SparkMeterServiceProvider",
             '--tag' => "vue-components"
         ]);
 
