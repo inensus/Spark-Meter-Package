@@ -137,8 +137,6 @@ class TariffService implements ISynchronizeService
             ]);
         }
         if ($model['plan_enabled'] && $model['plan_fixed_fee'] > 0) {
-            Log::debug('create',
-                ['relatedtarfii'=>$model]);
             $this->setAccessRate($model,$meterTariff->id,$model['plan_enabled']);
             $this->updateSparkTariffInfo($model);
         }
@@ -192,12 +190,13 @@ class TariffService implements ISynchronizeService
     }
     private function setAccessRate($model,$tariffId,$planEnabled){
         $accessRate = AccessRate::where('tariff_id', $tariffId)->first();
+        $duration =  array_key_exists("plan_duration", $model)?$model['plan_duration']:'1m';
         if ($accessRate) {
             if ($planEnabled){
                 $accessRate->update([
                     'tariff_id' => $tariffId,
                     'amount' => $model['plan_fixed_fee'],
-                    'period' => $model['plan_duration'] === '1m' ? 30 : 1,
+                    'period' => $duration === '1m' ? 30 : 1,
                 ]);
             }else{
                 $accessRate->delete();
@@ -207,7 +206,7 @@ class TariffService implements ISynchronizeService
                 AccessRate::create([
                     'tariff_id' => $tariffId,
                     'amount' => $model['plan_fixed_fee'],
-                    'period' => $model['plan_duration'] === '1m' ? 30 : 1,
+                    'period' => $duration === '1m' ? 30 : 1,
                 ]);
             }
         }
@@ -248,7 +247,7 @@ class TariffService implements ISynchronizeService
                 'tou_enabled' => $tariffData['tou_enabled'],
                 'tous' => $tariffData['tous'],
                 'plan_enabled' => $tariffData['plan_enabled'],
-                'plan_duration' => $tariffData['plan_duration'],
+                'plan_duration' => array_key_exists("plan_duration", $tariffData)?$tariffData['plan_duration']:'1m',
                 'plan_price' => $tariffData['plan_price'],
                 'plan_fixed_fee' => 0
             );
