@@ -241,7 +241,7 @@
                     </md-card-content>
                     <md-progress-bar md-mode="indeterminate" v-if="loading"/>
                     <md-card-actions>
-                        <md-button class="md-raised md-primary" type="submit">Send Changes to Spark Meter</md-button>
+                        <md-button class="md-raised md-primary" type="submit" :disabled="loading">Send Changes to Spark Meter</md-button>
                     </md-card-actions>
                 </md-card>
 

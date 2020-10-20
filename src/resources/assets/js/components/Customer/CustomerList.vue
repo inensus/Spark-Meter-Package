@@ -11,7 +11,7 @@
                 button-text="Get Updates From Spark Meter"
                 :button="true"
                 :is-synced="isSynced"
-
+                :loading="loading"
         >
             <md-table v-model="customerService.list" md-sort="id" md-sort-order="asc" md-card>
                 <md-table-row slot="md-table-row" slot-scope="{ item }" >

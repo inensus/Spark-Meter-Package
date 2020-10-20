@@ -11,6 +11,7 @@
                 button-text="Get Updates From Spark Meter"
                 :button="true"
                 :is-synced="isSynced"
+                :loading="loading"
 
         >
             <md-table v-model="meterModelService.list" md-sort="id" md-sort-order="asc" md-card>
@@ -23,7 +24,7 @@
                     </md-table-cell>
                 </md-table-row>
             </md-table>
-            <md-progress-bar md-mode="indeterminate" v-if="loading"/>
+            <md-progress-bar md-mode="indeterminate"  v-if="loading"/>
         </widget>
     </div>
 </template>

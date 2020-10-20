@@ -17,6 +17,7 @@
                         style="position: absolute; right: 10px; top:10px"
                         v-if="button"
                         v-text="buttonText"
+                        :disabled="loading"
                     >
                     </md-button>
 
@@ -141,6 +142,10 @@ export default {
         resetKey: {
             type: Number,
             default: 0
+        },
+      loading:{
+            type:Boolean,
+            default:false
         }
     },
     data () {
