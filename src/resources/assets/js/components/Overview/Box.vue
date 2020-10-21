@@ -6,7 +6,8 @@
                 class="box"
                 style="font-size: 1.5rem"
                 :style="backgroundColor">
-                <font-awesome-icon :icon="boxIcon" style="color:white;" v-if="!customIcon"/>
+                http://sparkapp-staging.spk.io:5010/api/v0
+                <md-icon style="color:white;" v-if="!customIcon">{{ boxIcon }}</md-icon>
                 <img :src="boxIcon" alt="" v-else>
                 <slot></slot>
             </div>

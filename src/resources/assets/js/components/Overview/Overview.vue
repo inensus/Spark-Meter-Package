@@ -14,7 +14,7 @@
                         :header-text-color="'#dddddd'"
                         header-text="Meter Models"
                         :sub-text-color="'#e3e3e3'"
-                        box-icon="plug"
+                         box-icon="settings_input_hdmi"
                         :box-icon-color="'#604058'"
                     />
                 </div>
@@ -28,7 +28,7 @@
                         :header-text-color="'#dddddd'"
                         header-text="Tariffs "
                         :sub-text-color="'#e3e3e3'"
-                        :box-icon="'money-bill'"
+                        box-icon="attach_money"
                         :box-icon-color="'#5c5837'"
                     />
                 </div>
@@ -42,7 +42,7 @@
                         :header-text-color="'#dddddd'"
                         header-text="Customers"
                         :sub-text-color="'#e3e3e3'"
-                        :box-icon="'user'"
+                        box-icon="supervisor_account"
                         :box-icon-color="'#385a76'"
 
                     />
