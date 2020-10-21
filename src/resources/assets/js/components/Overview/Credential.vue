@@ -12,6 +12,7 @@
                                 <md-input
                                     id="api_url"
                                     name="api_url"
+                                    placeholder="https://sparkapp-staging.spk.io:5010/api/v0"
                                     v-model="credentialService.credential.apiUrl"
                                     v-validate="'required|min:3'"
                                 />
