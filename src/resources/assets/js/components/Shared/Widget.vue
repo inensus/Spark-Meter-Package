@@ -143,7 +143,7 @@ export default {
             type: Number,
             default: 0
         },
-      loading:{
+        loading:{
             type:Boolean,
             default:false
         }
