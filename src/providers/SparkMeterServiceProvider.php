@@ -54,7 +54,7 @@ class SparkMeterServiceProvider extends ServiceProvider
     public function publishVueFiles()
     {
         $this->publishes([
-            __DIR__ . '/../resources/assets' => resource_path('assets/plugins/spark-meter'
+            __DIR__ . '/../resources/assets' => resource_path('assets/js/plugins/spark-meter'
             ),
         ], 'vue-components');
     }
