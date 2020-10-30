@@ -21,8 +21,7 @@ let routes = [
   },
   {
     path: '/spark-meters/sm-overview',
-    component: require('' +
-      './plugins/spark-meter/js/components/Overview/Overview').default,
+    component: require('./plugins/spark-meter/js/components/Overview/Overview').default,
     meta: { layout: 'default' },
-  }
+  },
 ]
