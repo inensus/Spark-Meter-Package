@@ -20,7 +20,7 @@ class MenuItemService
         ];
         array_push($subMenuItems, $subMenuItem1);
         $subMenuItem2=[
-            'name' =>'Meter Model',
+            'name' =>'Meter Models',
             'url_slug' =>'spark-meters/sm-meter-model/page/1',
         ];
         array_push($subMenuItems, $subMenuItem2);
@@ -29,16 +29,12 @@ class MenuItemService
             'url_slug' =>'spark-meters/sm-tariff/page/1',
         ];
         array_push($subMenuItems, $subMenuItem3);
+     
         $subMenuItem4=[
             'name' =>'Customers',
-            'url_slug' =>'spark-meters/sm-overview',
-        ];
-        array_push($subMenuItems, $subMenuItem4);
-        $subMenuItem1=[
-            'name' =>'Overview',
             'url_slug' =>'spark-meters/sm-customer/page/1',
         ];
-        array_push($subMenuItems, $subMenuItem1);
+        array_push($subMenuItems, $subMenuItem4);
 
         return ['menuItem'=>$menuItem,'subMenuItems'=>$subMenuItems];
 
