@@ -6,10 +6,14 @@ namespace Inensus\SparkMeter\Services;
 use App;
 use App\Http\Services\AddressService;
 use App\Models\Address\Address;
+use App\Models\City;
+use App\Models\ConnectionGroup;
+use App\Models\ConnectionType;
 use App\Models\GeographicalInformation;
 use App\Models\Manufacturer;
 use App\Models\Meter\Meter;
 use App\Models\Meter\MeterParameter;
+use App\Models\MiniGrid;
 use Exception;
 use App\Models\Person\Person;
 use Illuminate\Support\Facades\DB;
@@ -171,9 +175,10 @@ class CustomerService implements ISynchronizeService
                 $geoLocation->points = config('spark.geoLocation');
             }
             $meterParameter->geo()->save($geoLocation);
+            $sparkCity= City::query()->with('miniGrid')->where('name','Spark City')->first();
             $address = new Address();
             $address = $address->newQuery()->create([
-                'city_id' => request()->input('city_id') ?? 1,
+                'city_id' => request()->input('city_id') ?? $sparkCity->id,
             ]);
             $address->owner()->associate($meterParameter);
             $address->geo()->associate($meterParameter->geo);
@@ -253,6 +258,15 @@ class CustomerService implements ISynchronizeService
 
             if (!$syncCheck['result']) {
                 $sparkCustomers = $syncCheck['data'];
+                $sparkCity =  City::query()->with('miniGrid')->where('name','Spark City')->first();
+                if (!$sparkCity){
+                    $miniGrid = MiniGrid::query()->with('cluster')->latest('created_at')->first();
+                    City::create([
+                        'name'=>'Spark City',
+                        'mini_grid_id'=>$miniGrid->id,
+                        'cluster_id'=>$miniGrid->cluster->id
+                    ]);
+                }
                 foreach ($sparkCustomers as $key => $model) {
                     if (($model['id']) && ($model['meters'][0]['current_tariff_name'])) {
                         $registeredSmCustomer = SmCustomer::where('customer_id', $model['id'])->first();
@@ -345,4 +359,28 @@ class CustomerService implements ISynchronizeService
             throw  new Exception ($e->getMessage());
         }
     }
+
+    public function checkLocationAvailability()
+    {
+        return   MiniGrid::query()->with('cluster')->latest('created_at')->first();
+
+    }
+
+    public function checkConnectionAvailability()
+    {
+
+        $connectionType = ConnectionType::query()->first();
+
+        $connectionGroup = ConnectionGroup::query()->first();
+
+        $result = ['type'=>false,'group'=>false];
+        if ($connectionType){
+            $result['type']=true;
+        }
+        if($connectionGroup){
+            $result['group']=true;
+        }
+        return $result;
+    }
+
 }

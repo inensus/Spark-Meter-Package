@@ -33,4 +33,13 @@ class SmCustomerController  implements IBaseController
     {
         return  $this->customerService->getSmCustomersCount() ;
     }
+
+    public function location():ApiResource
+    {
+        return  new ApiResource($this->customerService->checkLocationAvailability());
+    }
+    public function connection():ApiResource
+    {
+        return  new ApiResource($this->customerService->checkConnectionAvailability());
+    }
 }

@@ -39,24 +39,20 @@ class CredentialService
     }
     public function updateCredentials($data)
     {
+        $smCredentials =SmCredential::find($data['id']);
+        $smCredentials->api_url=$data['api_url'];
+        $hash = $this->smTableEncryption->makeHash([$data['id'],$data['api_url'],$data['authentication_token']]);
+        $smCredentials->update([
+            'api_url'=>$data['api_url'],
+            'authentication_token'=>$data['authentication_token'],
+            'hash'=>$hash
+        ]);
+        $smCredentials->authentication_token=$data['authentication_token'];
         try {
-
-            $smCredentials =SmCredential::find($data['id']);
-            $smCredentials->api_url=$data['api_url'];
-            $smCredentials->authentication_token=$data['authentication_token'];
-            $hash = $this->smTableEncryption->makeHash([$data['id'],$data['api_url'],$data['authentication_token']]);
-            $smCredentials->update([
-                'api_url'=>$data['api_url'],
-                'authentication_token'=>$data['authentication_token'],
-                'hash'=>$hash
-            ]);
             $this->systemService->createSystem();
             return $smCredentials->fresh();
-        }catch (WrongCredentialsException $e){
-            $smCredentials->api_url=null;
-            $smCredentials->authentication_token=null;
-            $smCredentials->update();
-            throw  new WrongCredentialsException ($e->getMessage());
+        }catch (\Exception $e){
+            return $smCredentials;
         }
 
     }
