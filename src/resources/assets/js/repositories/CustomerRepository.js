@@ -13,5 +13,11 @@ export default {
     },
     count(){
         return  Client.get(`${resource}/count`)
-    }
+    },
+    location(){
+        return  Client.get(`${resource}/location`)
+    },
+    connections(){
+        return  Client.get(`${resource}/connection`)
+    },
 }

@@ -80,4 +80,33 @@ export class CustomerService {
             return new ErrorHandler(errorMessage, 'http')
         }
     }
+    async checkLocation(){
+        try {
+
+            let response = await this.repository.location()
+            if (response.status === 200) {
+                return response.data.data
+            } else {
+                return new ErrorHandler(response.error, 'http', response.status)
+            }
+        } catch (e) {
+            let errorMessage = e.response.data.data.message
+            return new ErrorHandler(errorMessage, 'http')
+        }
+    }
+
+    async checkConnectionTypes(){
+        try {
+
+            let response = await this.repository.connections()
+            if (response.status === 200) {
+                return response.data.data
+            } else {
+                return new ErrorHandler(response.error, 'http', response.status)
+            }
+        } catch (e) {
+            let errorMessage = e.response.data.data.message
+            return new ErrorHandler(errorMessage, 'http')
+        }
+    }
 }

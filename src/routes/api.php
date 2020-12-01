@@ -16,12 +16,15 @@ Route::group(['prefix' => 'spark-meters'], function () {
         Route::get('/sync-check', 'SmMeterModelController@checkSync');
         Route::get('/count', 'SmMeterModelController@count');
 
+
     });
     Route::group(['prefix' => 'sm-customer'], function () {
         Route::get('/', 'SmCustomerController@index');
         Route::get('/sync', 'SmCustomerController@sync');
         Route::get('/sync-check', 'SmCustomerController@checkSync');
         Route::get('/count', 'SmCustomerController@count');
+        Route::get('/location', 'SmCustomerController@location');
+        Route::get('/connection', 'SmCustomerController@connection');
 
     });
     Route::group(['prefix' => 'sm-tariff'], function () {
