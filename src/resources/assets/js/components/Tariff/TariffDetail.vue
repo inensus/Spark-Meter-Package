@@ -4,70 +4,70 @@
                 :title="title"
                 :paginator="false"
                 :button="false"
-                color="default"
+                color="red"
         >
             <form @submit.prevent="submitTariffForm" data-vv-scope="Tariff-Form">
                 <md-card>
                     <md-card-content>
                         <div class="md-layout md-gutter">
                             <div
-                                class="md-layout-item  md-xlarge-size-100 md-large-size-100 md-medium-size-100 md-small-size-100">
+                                    class="md-layout-item  md-xlarge-size-100 md-large-size-100 md-medium-size-100 md-small-size-100">
                                 <md-field :class="{'md-invalid': errors.has('Tariff-Form.name')}">
                                     <label for="name">Name</label>
                                     <md-input
-                                        id="name"
-                                        name="name"
-                                        v-model="tariffService.tariff.name"
-                                        v-validate="'required|min:3'"
+                                            id="name"
+                                            name="name"
+                                            v-model="tariffService.tariff.name"
+                                            v-validate="'required|min:3'"
                                     />
                                     <span class="md-error">{{ errors.first('Tariff-Form.name') }}</span>
                                 </md-field>
                             </div>
                             <div
-                                class="md-layout-item  md-xlarge-size-50 md-large-size-50 md-medium-size-50 md-small-size-50">
+                                    class="md-layout-item  md-xlarge-size-50 md-large-size-50 md-medium-size-50 md-small-size-50">
                                 <md-field :class="{'md-invalid': errors.has('Tariff-Form.flat_price')}">
                                     <label for="flat_price">Flat Price</label>
                                     <md-input
-                                        id="flat_price"
-                                        name="flat_price"
-                                        v-model="tariffService.tariff.flatPrice"
-                                        v-validate="'required|numeric'"
-                                        type="number"
-                                        @change="flatPriceChange()"
+                                            id="flat_price"
+                                            name="flat_price"
+                                            v-model="tariffService.tariff.flatPrice"
+                                            v-validate="'required|numeric'"
+                                            type="number"
+                                            @change="flatPriceChange()"
                                     />
                                     <span class="md-error">{{ errors.first('Tariff-Form.flat_price') }}</span>
                                 </md-field>
                             </div>
                             <div
-                                class="md-layout-item  md-xlarge-size-50 md-large-size-50 md-medium-size-50 md-small-size-50">
+                                    class="md-layout-item  md-xlarge-size-50 md-large-size-50 md-medium-size-50 md-small-size-50">
                                 <md-field :class="{'md-invalid': errors.has('Tariff-Form.flat_load_limit')}">
                                     <label for="name">Flat Load Limit</label>
                                     <md-input
-                                        id="flat_load_limit"
-                                        name="flat_load_limit"
-                                        v-model="tariffService.tariff.flatLoadLimit"
-                                        v-validate="'required|numeric'"
+                                            id="flat_load_limit"
+                                            name="flat_load_limit"
+                                            v-model="tariffService.tariff.flatLoadLimit"
+                                            v-validate="'required|numeric'"
                                     />
                                     <span class="md-error">{{ errors.first('Tariff-Form.flat_load_limit') }}</span>
                                 </md-field>
                             </div>
                             <div
-                                class="md-layout-item  md-xlarge-size-100 md-large-size-100 md-medium-size-100 md-small-size-100">
+                                    class="md-layout-item  md-xlarge-size-100 md-large-size-100 md-medium-size-100 md-small-size-100">
                                 <div class="md-layout md-gutter">
                                     <div
-                                        class="md-layout-item  md-xlarge-size-33 md-large-size-33 md-medium-size-33 md-small-size-33">
+                                            class="md-layout-item  md-xlarge-size-33 md-large-size-33 md-medium-size-33 md-small-size-33">
                                         <md-checkbox v-model="tariffService.tariff.dailyEnergyLimitEnabled">Daily Energy
                                             Limit Enabled?
                                         </md-checkbox>
                                     </div>
                                     <div
-                                        class="md-layout-item  md-xlarge-size-33 md-large-size-33 md-medium-size-33 md-small-size-33">
+                                            class="md-layout-item  md-xlarge-size-33 md-large-size-33 md-medium-size-33 md-small-size-33">
                                         <md-checkbox v-model="tariffService.tariff.planEnabled"
                                                      @change="planEnabledChange($event)">Plan Enabled?
                                         </md-checkbox>
                                     </div>
                                     <div
-                                        class="md-layout-item  md-xlarge-size-33 md-large-size-33 md-medium-size-33 md-small-size-33">
+                                            class="md-layout-item  md-xlarge-size-33 md-large-size-33 md-medium-size-33 md-small-size-33">
                                         <md-checkbox v-model="tariffService.tariff.touEnabled"
                                                      @change="touEnabledChange($event)">Tou Enabled?
                                         </md-checkbox>
@@ -80,19 +80,19 @@
                                 <md-field :class="{'md-invalid': errors.has('Tariff-Form.daily_energy_limit_value')}">
                                     <label for="daily_energy_limit_value">Daily Energy Limit Value</label>
                                     <md-input
-                                        id="daily_energy_limit_value"
-                                        name="daily_energy_limit_value"
-                                        v-model="tariffService.tariff.dailyEnergyLimitValue"
-                                        v-validate="{ required: tariffService.tariff.dailyEnergyLimitEnabled }"
+                                            id="daily_energy_limit_value"
+                                            name="daily_energy_limit_value"
+                                            v-model="tariffService.tariff.dailyEnergyLimitValue"
+                                            v-validate="{ required: tariffService.tariff.dailyEnergyLimitEnabled }"
                                     />
                                     <span
-                                        class="md-error">{{ errors.first('Tariff-Form.daily_energy_limit_value') }}</span>
+                                            class="md-error">{{ errors.first('Tariff-Form.daily_energy_limit_value') }}</span>
                                 </md-field>
                             </div>
                             <div v-if="tariffService.tariff.dailyEnergyLimitEnabled"
                                  class="md-layout-item md-xlarge-size-50 md-large-size-50 md-medium-size-50 md-small-size-100">
                                 <md-field
-                                    :class="{'md-invalid': errors.has('Tariff-Form.daily_energy_limit_reset_hour')}">
+                                        :class="{'md-invalid': errors.has('Tariff-Form.daily_energy_limit_reset_hour')}">
                                     <label for="daily_energy_limit_reset_hour">Daily Energy limit Reset Hour</label>
                                     <md-select v-model="tariffService.tariff.dailyEnergyLimitResetHour"
                                                name="daily_energy_limit_reset_hour" id="daily_energy_limit_reset_hour">
@@ -103,7 +103,7 @@
                                         </md-option>
                                     </md-select>
                                     <span
-                                        class="md-error">{{ errors.first('Tariff-Form.daily_energy_limit_reset_hour') }}</span>
+                                            class="md-error">{{ errors.first('Tariff-Form.daily_energy_limit_reset_hour') }}</span>
                                 </md-field>
                             </div>
 
@@ -126,11 +126,11 @@
                                 <md-field :class="{'md-invalid': errors.has('Tariff-Form.plan_price')}">
                                     <label for="plan_price">Plan Price</label>
                                     <md-input
-                                        id="plan_price"
-                                        name="plan_price"
-                                        v-model="tariffService.tariff.planPrice"
-                                        type="number"
-                                        v-validate="{ required: tariffService.tariff.planEnabled }"
+                                            id="plan_price"
+                                            name="plan_price"
+                                            v-model="tariffService.tariff.planPrice"
+                                            type="number"
+                                            v-validate="{ required: tariffService.tariff.planEnabled }"
                                     />
                                     <span class="md-error">{{ errors.first('Tariff-Form.plan_price') }}</span>
                                 </md-field>
@@ -140,11 +140,11 @@
                                 <md-field :class="{'md-invalid': errors.has('Tariff-Form.plan_fixed_fee')}">
                                     <label for="plan_fixed_fee">Plan Fixed Fee</label>
                                     <md-input
-                                        id="plan_fixed_fee"
-                                        name="plan_fixed_fee"
-                                        v-model="tariffService.tariff.planFixedFee"
-                                        type="number"
-                                        v-validate="{ required: tariffService.tariff.planEnabled }"
+                                            id="plan_fixed_fee"
+                                            name="plan_fixed_fee"
+                                            v-model="tariffService.tariff.planFixedFee"
+                                            type="number"
+                                            v-validate="{ required: tariffService.tariff.planEnabled }"
                                     />
                                     <span class="md-error">{{ errors.first('Tariff-Form.plan_fixed_fee') }}</span>
                                 </md-field>
@@ -153,7 +153,7 @@
 
                             <!--Time of Usages-->
                             <div
-                                class="md-layout-item  md-xlarge-size-100 md-large-size-100 md-medium-size-100 md-small-size-100">
+                                    class="md-layout-item  md-xlarge-size-100 md-large-size-100 md-medium-size-100 md-small-size-100">
                                 <md-button role="button" :disabled="tariffService.conflicts.length>0"
                                            class="md-raised md-secondary" @click="addTou()">
                                     <font-awesome-icon icon="plus"/>
@@ -161,11 +161,11 @@
                                 </md-button>
                             </div>
                             <div
-                                class="md-layout-item md-xlarge-size-100 md-large-size-100 md-medium-size-100 md-small-size-100"
-                                v-for="(tou,index) in tariffService.tariff.tous" :key="'tou'+index">
+                                    class="md-layout-item md-xlarge-size-100 md-large-size-100 md-medium-size-100 md-small-size-100"
+                                    v-for="(tou,index) in tariffService.tariff.tous" :key="'tou'+index">
                                 <div class="md-layout md-gutter">
                                     <div
-                                        class="md-layout-item md-xlarge-size-20 md-large-size-20 md-medium-size-20 md-small-size-20">
+                                            class="md-layout-item md-xlarge-size-20 md-large-size-20 md-medium-size-20 md-small-size-20">
 
                                         <md-field :class="{'md-invalid': errors.has('Tariff-Form.start'+tou.id)}">
                                             <label for="name">Start</label>
@@ -182,7 +182,7 @@
                                         </md-field>
                                     </div>
                                     <div
-                                        class="md-layout-item md-xlarge-size-20 md-large-size-20 md-medium-size-20 md-small-size-20">
+                                            class="md-layout-item md-xlarge-size-20 md-large-size-20 md-medium-size-20 md-small-size-20">
 
                                         <md-field :class="{'md-invalid': errors.has('Tariff-Form.end'+tou.id)}">
                                             <label for="end">End</label>
@@ -199,37 +199,37 @@
                                         </md-field>
                                     </div>
                                     <div
-                                        class="md-layout-item md-xlarge-size-20 md-large-size-20 md-medium-size-20 md-small-size-20">
+                                            class="md-layout-item md-xlarge-size-20 md-large-size-20 md-medium-size-20 md-small-size-20">
 
                                         <md-field :class="{'md-invalid': errors.has('Tariff-Form.value')}">
                                             <label for="value">Value </label>
                                             <md-input
-                                                placeholder="% of normal tariff"
-                                                id="value"
-                                                name="value"
-                                                min="1"
-                                                v-model="tou.value"
-                                                v-validate="'required|decimal|min_value:1'"
-                                                @change="touValueChange(tou)"
+                                                    placeholder="% of normal tariff"
+                                                    id="value"
+                                                    name="value"
+                                                    min="1"
+                                                    v-model="tou.value"
+                                                    v-validate="'required|decimal|min_value:1'"
+                                                    @change="touValueChange(tou)"
                                             />
                                             <span class="md-error">{{ errors.first('Tou-Form.value') }}</span>
                                         </md-field>
                                     </div>
                                     <div
-                                        class="md-layout-item md-xlarge-size-15 md-large-size-15 md-medium-size-15 md-small-size-15">
+                                            class="md-layout-item md-xlarge-size-15 md-large-size-15 md-medium-size-15 md-small-size-15">
                                         <md-field>
                                             <label for="value">Cost </label>
                                             <md-input
-                                                :disabled="true"
-                                                v-model="tou.cost"
+                                                    :disabled="true"
+                                                    v-model="tou.cost"
 
                                             />
 
                                         </md-field>
                                     </div>
                                     <div
-                                        class="md-layout-item md-xlarge-size-5 md-large-size-5 md-medium-size-5 md-small-size-5"
-                                        @click="removeTou(tou.id)">
+                                            class="md-layout-item md-xlarge-size-5 md-large-size-5 md-medium-size-5 md-small-size-5"
+                                            @click="removeTou(tou.id)">
 
                                         <md-icon style="margin-top: 1.5rem;color: red;">cancel
                                         </md-icon>
@@ -241,7 +241,9 @@
                     </md-card-content>
                     <md-progress-bar md-mode="indeterminate" v-if="loading"/>
                     <md-card-actions>
-                        <md-button class="md-raised md-primary" type="submit" :disabled="loading">Send Changes to Spark Meter</md-button>
+                        <md-button class="md-raised md-primary" type="submit" :disabled="loading">Send Changes to Spark
+                            Meter
+                        </md-button>
                     </md-card-actions>
                 </md-card>
 

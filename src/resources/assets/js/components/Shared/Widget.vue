@@ -4,23 +4,14 @@
             <div class="tabs">
                 <slot name="tabbar"></slot>
             </div>
-
+            <md-icon style="color: white;">list</md-icon>
             <div class="md-toolbar-section-start">
-                <font-awesome-icon icon="list"/>
-                <h4 class="chic-title" v-text="title">
 
-                </h4>
+                <h4 class="chic-title" v-text="title"></h4>
+
+            </div>
+            <div class="md-toolbar-section-end">
                 <div class="search-area">
-                    <md-button
-                        @click="_callback"
-                        class="md-dense md-primary chic-button"
-                        style="position: absolute; right: 10px; top:10px"
-                        v-if="button"
-                        v-text="buttonText"
-                        :disabled="loading"
-                    >
-                    </md-button>
-
                     <div class="search-input" v-if="search">
                         <div class="md-layout md-gutter">
 
@@ -30,48 +21,74 @@
                                 <md-input style="color: white!important;" v-model="searchTerm"></md-input>
                                 <div v-if="searching">
                                 <span style="margin-right: 15px;">Search Results for: <u>{{searchTerm}}</u>
-
-                                    <font-awesome-icon @click="showAllEntries" class="pointer" icon="times"/></span>
-
+                                    <md-icon @click="showAllEntries" class="pointer">cancel</md-icon></span>
                                 </div>
                                 <md-icon style="color: white;">search</md-icon>
-
-
                             </md-field>
-
-
                         </div>
-
-
                     </div>
 
                 </div>
+                <md-button
+                        :class="setButtonColor()"
+                        @click="widgetAction"
+                        class="md-icon-button md-dense md-raised"
+                        v-if="button"
+                >
+                    <md-tooltip md-direction="top">{{ buttonText }}</md-tooltip>
+                    <md-icon>{{ buttonIcon }}</md-icon>
+                </md-button>
+                <md-button v-if="showRefreshButton" @click="refreshButtonClicked"
+                           class="md-icon-button md-dense md-raised"
+                           :class="{'refresh-button' : isActive}">
+                    <md-tooltip md-direction="top">Refresh</md-tooltip>
+                    <md-icon>cached</md-icon>
+                </md-button>
             </div>
-            <md-icon v-if="button" :class="isSynced ? 'synced-icon' : 'not-synced-icon'" >fiber_manual_record
-                <md-tooltip v-if="isSynced" md-direction="left">{{title}} <div v-if="!isSynced">not</div> synchronized </md-tooltip>
-            </md-icon>
+
 
         </md-toolbar>
-
         <md-card>
-            <md-card-content class="no-padding">
-                <slot></slot>
+            <md-card-content class="nopadding">
+                <div v-if="showData">
+                    <slot></slot>
+                </div>
+                <div v-else name="emptyState">
+                    <div v-if="showEmptyState" name="emptyState" class="empty-state">
+                        <md-empty-state
+                                :md-icon="icon"
+                                :md-description="emptyStateDescription"
+                                :md-label="getEmptyStateLabel">
+                            <md-button v-if="button && newRecordButton" @click="widgetAction"
+                                       class="md-primary md-raised">
+                                {{getEmptyStateButtonText}}
+                            </md-button>
+                        </md-empty-state>
+                    </div>
+                    <div v-else class="loading-state">
+                        <div>
+                            <img src="/storage/spinner/spinner.gif" alt="">
+                        </div>
+                    </div>
+                </div>
+
             </md-card-content>
         </md-card>
         <md-toolbar class="md-dense" md-elevation="1" v-if="paginator">
             <paginator
-                :route_name="route_name"
-                :show_per_page="show_per_page"
-                :subscriber="subscriber"
-                :url="paging_url"
-                v-if="paginator"
-
+                    :route_name="route_name"
+                    :show_per_page="show_per_page"
+                    :subscriber="subscriber"
+                    :url="paging_url"
+                    v-if="paginator"
+                    :key="resetKey"
             ></paginator>
         </md-toolbar>
     </div>
 </template>
 
 <script>
+
 
 import { EventBus } from '../../eventbus'
 import Paginator from './Paginator'
@@ -81,40 +98,28 @@ export default {
     name: 'Widget',
     components: { Paginator },
     props: {
+        emptyStateDescription: {
+            type: String,
+            default: null,
+            required: false
+        },
         color: {
             type: String,
             default: 'default'
         },
-        title: {
-            type: String,
-            default: ''
-        },
-        id: {
-            type: String,
-            default: 'default'
-        },
-
-        callback: {},
-        button: {
-            type:Boolean,
-            default:false
-        },
-        buttonText: {
-            type:String,
-            default:''
-        },
         buttonIcon: {
-            type:String,
-            default:''
+            type: String,
+            default: 'add'
         },
-        buttonColor: {
-            type:String,
-            default:''
+        showRefreshButton: {
+            type: Boolean,
+            default: false,
         },
-        isSynced:{
-            type:Boolean,
-            default:false
-        },
+        title: String,
+        id: String,
+        button: Boolean,
+        buttonText: String,
+        buttonColor: String,
         paginator: {
             type: Boolean,
             default: false
@@ -125,12 +130,8 @@ export default {
         search: {},
         subscriber: {
             type: String,
-            default: ''
         },
-        route_name: {
-            type: String,
-            default: ''
-        },
+        route_name: String,
         headless: {
             type: Boolean,
             default: false
@@ -140,22 +141,65 @@ export default {
             default: false
         },
         resetKey: {
-            type: Number,
             default: 0
         },
-        loading:{
-            type:Boolean,
-            default:false
+        newRecordButton: {
+            type: Boolean,
+            default: false
         }
+    },
+    mounted () {
+        //listen for a remote trigger for ending the search
+        EventBus.$on('search.end', this.cancelSearching)
+        if (this.subscriber === null || this.subscriber === undefined) {
+            return this.showData = true
+        } else {
+            EventBus.$on('widgetContentLoaded', this.checkDataLength)
+        }
+
+    },
+    beforeDestroy () {
+        EventBus.$off('search.end', this.cancelSearching)
     },
     data () {
         return {
             searching: false,
             searchTerm: '',
-
+            icon: 'post_add',
+            showEmptyState: false,
+            showData: false,
+            isActive: false
         }
     },
     methods: {
+        refreshButtonClicked () {
+            this.isActive = true
+            this.$emit('refreshButtonClicked')
+
+        },
+        widgetAction () {
+            this.$emit('widgetAction', this.subscriber)
+        },
+        validateSubscriber (subscriber) {
+            return this.subscriber === subscriber
+        },
+        checkDataLength (subscriber, dataLength) {
+            console.log(subscriber, dataLength)
+
+            if (!this.validateSubscriber(subscriber)) {
+                return
+            }
+            if (dataLength === 0) {
+                this.showData = false
+                this.showEmptyState = true
+            } else if (dataLength === null || dataLength === undefined) {
+                this.showData = false
+                this.showEmptyState = false
+            } else {
+                this.showData = true
+                this.showEmptyState = false
+            }
+        },
         defaultCallback () {
             alert('default button click')
         },
@@ -172,25 +216,35 @@ export default {
             this.searching = false
             this.searchTerm = ''
         },
-
-        setSyncIconClass(){
-
-            if(this.isSynced){
-                // eslint-disable-next-line no-debugger
-                debugger
-                return 'synced-icon'
-            }else{
-                return 'not-synced-icon'
+        setButtonColor () {
+            if (this.buttonColor === undefined) {
+                return 'btn-primary'
+            } else if (this.buttonColor === 'green') {
+                return 'btn-success'
+            } else if (this.buttonColor === 'yellow') {
+                return 'btn-warning'
+            } else if (this.buttonColor === 'red') {
+                return 'btn-danger'
+            } else if (this.buttonColor === 'blue') {
+                return 'btn-info'
             }
         }
-
     },
     computed: {
-        _callback () {
-
-            if (this.callback === undefined) return this.defaultCallback
-            else return this.callback
+        getEmptyStateLabel () {
+            if (this.title === null || this.title === undefined) {
+                return 'No Data Found'
+            } else {
+                return 'No Data Found for ' + this.title
+            }
         },
+        getEmptyStateButtonText () {
+            if (this.title === null || this.title === undefined) {
+                return 'Create Your First Record'
+            } else {
+                return 'Create the First ' + this.title + ' Record'
+            }
+        }
 
     },
     watch: {
@@ -198,7 +252,7 @@ export default {
             if (this.searchTerm.length > 0) {
                 this.doSearch(this.searchTerm)
             }
-            if (this.searching && this.searchTerm.length === 0) {
+            if (this.searching && this.searchTerm.length == 0) {
                 this.showAllEntries()
             }
         }, 1000)
@@ -206,16 +260,17 @@ export default {
 }
 </script>
 
-
 <style lang="scss" scoped>
-    .synced-icon{
-        color: #0b920b !important;
-        margin-right: 18rem !important;
+    .refresh-button {
+        animation: rotate 1.4s ease 0.5s;
     }
-    .not-synced-icon{
-        color: #840202 !important;
-        margin-right: 18rem !important;
+
+    @keyframes rotate {
+        0% {
+            transform: rotate(360deg);
+        }
     }
+
     .full-width-input-with-icon {
         width: calc(100% - 32px) !important;
     }
@@ -254,6 +309,7 @@ export default {
         line-height: 22px;
         font-size: 1rem;
         margin-left: 5px;
+        white-space: pre;
     }
 
     .chic-button {
@@ -267,10 +323,10 @@ export default {
     .md-toolbar[data-color="default"] {
         background: rgb(61, 59, 63);
         background: linear-gradient(
-                162deg,
-                rgba(61, 59, 63, 1) 0%,
-                rgba(121, 117, 125, 1) 50%,
-                rgba(101, 98, 105, 1) 100%
+                        162deg,
+                        rgba(61, 59, 63, 1) 0%,
+                        rgba(121, 117, 125, 1) 50%,
+                        rgba(101, 98, 105, 1) 100%
         );
         box-shadow: 0 12px 20px -10px rgba(130, 130, 130, 0.28),
         0 4px 20px 0 rgba(26, 26, 26, 0.12), 0 7px 8px -5px rgba(83, 80, 84, 0.2);
@@ -292,10 +348,10 @@ export default {
     .md-toolbar[data-color="green"] {
         background: rgb(68, 113, 68);
         background: linear-gradient(
-                162deg,
-                rgba(68, 113, 68, 1) 0%,
-                rgba(90, 149, 90, 1) 50%,
-                rgba(102, 171, 102, 1) 100%
+                        162deg,
+                        rgba(68, 113, 68, 1) 0%,
+                        rgba(90, 149, 90, 1) 50%,
+                        rgba(102, 171, 102, 1) 100%
         );
         box-shadow: 0 12px 20px -10px rgba(76, 175, 80, 0.28),
         0 4px 20px 0 rgba(0, 0, 0, 0.12), 0 7px 8px -5px rgba(76, 175, 80, 0.2);
@@ -317,10 +373,10 @@ export default {
     .md-toolbar[data-color="orange"] {
         background: rgb(164, 106, 0);
         background: linear-gradient(
-                162deg,
-                rgba(164, 106, 0, 1) 0%,
-                rgba(218, 142, 1, 1) 50%,
-                rgba(255, 165, 0, 1) 100%
+                        162deg,
+                        rgba(164, 106, 0, 1) 0%,
+                        rgba(218, 142, 1, 1) 50%,
+                        rgba(255, 165, 0, 1) 100%
         );
         box-shadow: 0 12px 20px -10px rgba(255, 165, 0, 0.28),
         0 4px 20px 0 rgba(255, 165, 0, 0.12), 0 7px 8px -5px rgba(255, 165, 0, 0.2);
@@ -342,10 +398,10 @@ export default {
     .md-toolbar[data-color="red"] {
         background: rgb(96, 28, 28);
         background: linear-gradient(
-                162deg,
-                rgba(96, 28, 28, 1) 0%,
-                rgba(198, 73, 92, 1) 50%,
-                rgba(236, 17, 50, 1) 100%
+                        162deg,
+                        rgba(96, 28, 28, 1) 0%,
+                        rgba(198, 73, 92, 1) 50%,
+                        rgba(236, 17, 50, 1) 100%
         );
         box-shadow: 0 12px 20px -10px rgba(255, 0, 39, 0.28),
         0 4px 20px 0 rgba(255, 0, 39, 0.12), 0 7px 8px -5px rgba(255, 0, 39, 0.2);
@@ -367,7 +423,7 @@ export default {
     .search-area {
         float: right;
         margin: auto;
-        width: 60% !important;
+        width: 80% !important;
     }
 
     .search-input {
@@ -378,6 +434,26 @@ export default {
 
     .pointer {
         cursor: pointer;
+    }
+
+    .empty-state {
+        width: 100%;
+        height: 20%;
+        margin: auto;
+    }
+
+    .loading-state {
+        width: 30%;
+        height: 30%;
+        margin: auto;
+    }
+
+    .md-toolbar-section-start {
+        width: 40%;
+    }
+
+    .md-toolbar-section-end {
+        width: 60%;
     }
 </style>
 
