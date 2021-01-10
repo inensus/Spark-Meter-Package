@@ -7,7 +7,7 @@ namespace Inensus\SparkMeter\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class SmCredentialRequest extends FormRequest
+class SmSiteRequest  extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -29,8 +29,8 @@ class SmCredentialRequest extends FormRequest
     {
         return [
 
-            'api_key' =>['required',Rule::unique('sm_api_credentials')->ignore($this->id)],
-            'api_secret' => 'required',
+            'thundercloud_url' => 'required',
+            'thundercloud_token' => 'required'
 
         ];
     }

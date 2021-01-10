@@ -7,7 +7,7 @@ namespace Inensus\SparkMeter\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class SmCredentialRequest extends FormRequest
+class SmCustomerRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -18,7 +18,6 @@ class SmCredentialRequest extends FormRequest
     {
         return true;
     }
-
     /**
      * Get the validation rules that apply to the request.
      *
@@ -29,8 +28,7 @@ class SmCredentialRequest extends FormRequest
     {
         return [
 
-            'api_key' =>['required',Rule::unique('sm_api_credentials')->ignore($this->id)],
-            'api_secret' => 'required',
+            'low_balance_limit' =>'required'
 
         ];
     }

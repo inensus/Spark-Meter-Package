@@ -2,26 +2,135 @@
 
 namespace Inensus\SparkMeter\Http\Requests;
 
+use Exception;
 use GuzzleHttp\Client;
 use Inensus\SparkMeter\Helpers\ResultStatusChecker;
 use Inensus\SparkMeter\Models\SmCredential;
-use Matrix\Exception;
+use Inensus\SparkMeter\Models\SmSite;
+
 
 class SparkMeterApiRequests
 {
 
     private $client;
     private $resultStatusChecker;
-
+    private $credential;
+    private $site;
+    private $smCredentail;
     public function __construct(
         Client $httpClient,
-        ResultStatusChecker $resultStatusChecker
+        ResultStatusChecker $resultStatusChecker,
+        SmCredential $credential,
+        SmSite $site,
+        SmCredential $smCredential
     ) {
         $this->client = $httpClient;
         $this->resultStatusChecker = $resultStatusChecker;
+        $this->credential = $credential;
+        $this->site = $site;
+        $this->smCredentail=$smCredential;
     }
 
-    public function get($url)
+    public function get($url, $siteId)
+    {
+
+
+        $smSite = $this->getThunderCloudInformation($siteId);
+
+        $request = $this->client->get(
+            $smSite->thundercloud_url . $url,
+            [
+                'headers' => [
+                    'Content-Type' => 'application/json;charset=utf-8',
+                    'Authentication-Token' => $smSite->thundercloud_token
+                ],
+            ]
+        );
+
+        return $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
+    }
+
+    public function post($url, $postParams, $siteId)
+    {
+        $smSite = $this->getThunderCloudInformation($siteId);
+        $request = $this->client->post(
+            $smSite->thundercloud_url . $url,
+            [
+                'body' => json_encode($postParams),
+                'headers' => [
+                    'Content-Type' => 'application/json;charset=utf-8',
+                    'Authentication-Token' => $smSite->thundercloud_token
+                ],
+            ]
+        );
+
+        return $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
+    }
+
+    public function put($url, $putParams, $siteId)
+    {
+        $smSite = $this->getThunderCloudInformation($siteId);
+        $request = $this->client->put(
+            $smSite->thundercloud_url . $url,
+            [
+                'body' => json_encode($putParams),
+                'headers' => [
+                    'Content-Type' => 'application/json;charset=utf-8',
+                    'Authentication-Token' => $smSite->thundercloud_token
+                ],
+            ]
+        );
+
+        return $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
+
+    }
+
+    public function getByParams($url, $params, $siteId)
+    {
+        try {
+            $smSite = $this->getThunderCloudInformation($siteId);
+            $apiUrl = $smSite->thundercloud_url . $url . '?';
+            foreach ($params as $key => $value) {
+                $apiUrl .= $key . "=" . $value . "&";
+            }
+            $apiUrl = substr($apiUrl, 0, -1);
+
+            $request = $this->client->get(
+                $apiUrl,
+                [
+                    'headers' => [
+                        'Content-Type' => 'application/json;charset=utf-8',
+                        'Authentication-Token' => $smSite->thundercloud_token
+                    ],
+                ]
+            );
+            return json_decode((string)$request->getBody(), true);
+        } catch (Exception $e) {
+            return [
+                'status' => 'failure'
+            ];
+        }
+
+    }
+
+    public function getInfo($url, $id, $siteId)
+    {
+        $smSite = $this->getThunderCloudInformation($siteId);
+        $apiUrl = $smSite->thundercloud_url . $url . $id;
+        $request = $this->client->get(
+            $apiUrl,
+            [
+                'headers' => [
+                    'Content-Type' => 'application/json;charset=utf-8',
+                    'Authentication-Token' => $smSite->thundercloud_token
+                ],
+            ]
+        );
+        return $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
+    }
+
+
+    public function getFromKoios($url)
     {
         $smCredential = $this->getCredentials();
         $request = $this->client->get(
@@ -29,14 +138,15 @@ class SparkMeterApiRequests
             [
                 'headers' => [
                     'Content-Type' => 'application/json;charset=utf-8',
-                    'Authentication-Token' => $smCredential->authentication_token
+                    'X-API-KEY' => $smCredential->api_key,
+                    'X-API-SECRET' => $smCredential->api_secret
                 ],
             ]
         );
         return $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
     }
 
-    public function post($url, $postParams)
+    public function postToKoios($url, $postParams)
     {
         $smCredential = $this->getCredentials();
         $request = $this->client->post(
@@ -45,78 +155,21 @@ class SparkMeterApiRequests
                 'body' => json_encode($postParams),
                 'headers' => [
                     'Content-Type' => 'application/json;charset=utf-8',
-                    'Authentication-Token' => $smCredential->authentication_token
+                    'X-API-KEY' => $smCredential->api_key,
+                    'X-API-SECRET' => $smCredential->api_secret
                 ],
             ]
         );
-
         return $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
-    }
-
-    public function put($url, $putParams)
-    {
-        $smCredential = $this->getCredentials();
-        $request = $this->client->put(
-            $smCredential->api_url . $url,
-            [
-                'body' => json_encode($putParams),
-                'headers' => [
-                    'Content-Type' => 'application/json;charset=utf-8',
-                    'Authentication-Token' => $smCredential->authentication_token
-                ],
-            ]
-        );
-
-        return $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
-
-    }
-
-    public function getByParams($url, $params)
-    {
-        try {
-            $smCredential = $this->getCredentials();
-            $apiUrl = $smCredential->api_url . $url . '?';
-            foreach ($params as $key => $value) {
-                $apiUrl .= $key . "=" . $value . "&";
-            }
-            $apiUrl=substr($apiUrl,0,-1);
-
-            $request = $this->client->get(
-                $apiUrl,
-                [
-                    'headers' => [
-                        'Content-Type' => 'application/json;charset=utf-8',
-                        'Authentication-Token' => $smCredential->authentication_token
-                    ],
-                ]
-            );
-            return json_decode((string)$request->getBody(), true);
-        }catch (\Exception $e){
-            return [
-                'status'=>'failure'
-            ];
-        }
-
-    }
-
-    public function getInfo($url, $id)
-    {
-            $smCredential = $this->getCredentials();
-            $apiUrl = $smCredential->api_url . $url.$id;
-            $request = $this->client->get(
-                $apiUrl,
-                [
-                    'headers' => [
-                        'Content-Type' => 'application/json;charset=utf-8',
-                        'Authentication-Token' => $smCredential->authentication_token
-                    ],
-                ]
-            );
-            return  $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
     }
 
     private function getCredentials()
     {
-        return SmCredential::query()->first();
+        return $this->smCredentail->newQuery()->first();
+    }
+
+    private function getThunderCloudInformation($siteId)
+    {
+        return $this->site->newQuery()->where('site_id', $siteId)->first();
     }
 }
