@@ -1,9 +1,10 @@
 <?php
 namespace Inensus\SparkMeter\Http\Controllers;
-use App\Http\Resources\ApiResource;
+
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Inensus\SparkMeter\Http\Requests\SmTariffRequest;
+use Inensus\SparkMeter\Http\Resources\SparkResource;
 use Inensus\SparkMeter\Services\TariffService;
 
 class SmTariffController  extends Controller implements IBaseController
@@ -15,14 +16,14 @@ class SmTariffController  extends Controller implements IBaseController
         $this->tariffService = $tariffService;
     }
 
-    public function index(Request $request): ApiResource
+    public function index(Request $request): SparkResource
     {
-        return new ApiResource($this->tariffService->getSmTariffs($request));
+        return new SparkResource($this->tariffService->getSmTariffs($request));
     }
 
-    public function getInfo($tariffId): ApiResource
+    public function getInfo($tariffId): SparkResource
     {
-        return new ApiResource($this->tariffService->getSparkTariffInfo($tariffId));
+        return new SparkResource($this->tariffService->getSparkTariffInfo($tariffId));
     }
 
     public function updateInfo(SmTariffRequest $request)
@@ -43,18 +44,18 @@ class SmTariffController  extends Controller implements IBaseController
             'planFixedFee'=>$request->input('planFixedFee')
         ];
 
-        return new ApiResource($this->tariffService->updateSparkTariffInfo($tariffData));
+        return new SparkResource($this->tariffService->updateSparkTariffInfo($tariffData));
 
     }
 
-    public function sync(): ApiResource
+    public function sync(): SparkResource
     {
-        return new ApiResource($this->tariffService->sync());
+        return new SparkResource($this->tariffService->sync());
     }
 
-    public function checkSync(): ApiResource
+    public function checkSync(): SparkResource
     {
-        return new ApiResource($this->tariffService->syncCheck());
+        return new SparkResource($this->tariffService->syncCheck());
     }
     public function count()
     {

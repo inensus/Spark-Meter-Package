@@ -5,7 +5,7 @@ namespace Inensus\SparkMeter\Observers;
 
 
 use App\Models\Person\Person;
-use Illuminate\Support\Facades\Log;
+
 use Inensus\SparkMeter\Helpers\SmTableEncryption;
 use Inensus\SparkMeter\Services\CustomerService;
 use Inensus\SparkMeter\Models\SmCustomer;
@@ -15,18 +15,29 @@ class PersonObserver
 {
     private $customerService;
     private $smTableEncryption;
-    public function __construct(CustomerService $customerService,SmTableEncryption $smTableEncryption)
-    {
+    private $person;
+    private $smCustomer;
+    public function __construct(
+        CustomerService $customerService,
+        SmTableEncryption $smTableEncryption,
+        Person $person,
+        SmCustomer $smCustomer) {
         $this->customerService = $customerService;
         $this->smTableEncryption=$smTableEncryption;
+        $this->person=$person;
+        $this->smCustomer=$smCustomer;
     }
 
     public function updated(Person $person)
     {
-        $smCustomer = SmCustomer::query()->where('mpm_customer_id',$person->id)->first();
+        $smCustomer = $this->smCustomer->newQuery()->with('site')->where('mpm_customer_id',$person->id)->first();
+
         if ($smCustomer){
             $personId=$person->id;
-            $customer=Person::with(['meters.tariff','meters.geo', 'meters.meter','addresses'=>function($q) {return $q->where('is_primary',1);} ])->where('id',$personId)->first();
+            $customer= $this->person->newQuery()->with(['meters.tariff','meters.geo', 'meters.meter','addresses'=>function($q) {return $q->where('is_primary',1);} ])->where('id',$personId)->first();
+
+            $siteId=$smCustomer->site->site_id;
+
             $customerData = [
                 'id'=>$smCustomer->customer_id,
                 'active'=>true,
@@ -38,12 +49,15 @@ class PersonObserver
                 'address'=>$customer->addresses[0]->street
             ];
 
-            $this->customerService->updateSparkCustomerInfo($customerData);
+            $this->customerService->updateSparkCustomerInfo($customerData,$siteId);
+
             $smModelHash = $this->smTableEncryption->makeHash([
                 $person->name . ' ' . $person->surname,
                 $customer->addresses[0]->phone,
+                $customer->credit_balance,
                 $customer->meters[0]->tariff->name,
-                $customer->meters[0]->meter->serial_number,
+                $customer->meters[0]->meter->serial_number
+
             ]);
 
             $smCustomer->update([

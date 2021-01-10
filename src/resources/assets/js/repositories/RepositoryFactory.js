@@ -3,7 +3,7 @@ import CustomerRepository from './CustomerRepository'
 import MeterModelRepository from './MeterModelRepository'
 import TariffRepository from './TariffRepository'
 import PaginatorRepository from './PaginatorRepository'
-import SystemRepository from './SystemRepository'
+import SiteRepository from './SiteRepository'
 
 const repositories = {
     'credential':CredentialRepository,
@@ -11,7 +11,7 @@ const repositories = {
     'meterModel':MeterModelRepository,
     'tariff':TariffRepository,
     'paginate':PaginatorRepository,
-    'system':SystemRepository
+    'site':SiteRepository
 }
 export default {
     get: name => repositories[name]

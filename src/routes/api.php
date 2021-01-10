@@ -2,9 +2,13 @@
 use Illuminate\Support\Facades\Route;
 Route::group(['prefix' => 'spark-meters'], function () {
 
-    Route::group(['prefix' => 'sm-system'], function () {
-        Route::get('/', 'SystemController@show');
-
+    Route::group(['prefix' => 'sm-site'], function () {
+        Route::get('/', 'SmSiteController@index');
+        Route::get('/sync', 'SmSiteController@sync');
+        Route::get('/sync-check', 'SmSiteController@checkSync');
+        Route::get('/count', 'SmSiteController@count');
+        Route::put('/{site}', 'SmSiteController@update');
+        Route::get('/location', 'SmSiteController@location');
     });
     Route::group(['prefix' => 'sm-credential'], function () {
         Route::get('/', 'SmCredentialController@show');
@@ -23,8 +27,9 @@ Route::group(['prefix' => 'spark-meters'], function () {
         Route::get('/sync', 'SmCustomerController@sync');
         Route::get('/sync-check', 'SmCustomerController@checkSync');
         Route::get('/count', 'SmCustomerController@count');
-        Route::get('/location', 'SmCustomerController@location');
         Route::get('/connection', 'SmCustomerController@connection');
+        Route::put('/{customer}', 'SmCustomerController@update');
+        Route::get('/search', 'SmCustomerController@search');
 
     });
     Route::group(['prefix' => 'sm-tariff'], function () {

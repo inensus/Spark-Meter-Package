@@ -13,9 +13,13 @@ use Inensus\SparkMeter\Models\SmTransaction;
 class TransactionListener
 {
     private $transactionService;
-    public function __construct(TransactionService $transactionService)
-    {
+    private $smTransaction;
+    public function __construct(
+        TransactionService $transactionService,
+        SmTransaction $smTransaction
+    ) {
         $this->transactionService=$transactionService;
+        $this->smTransaction=$smTransaction;
     }
 
     /**
@@ -24,9 +28,10 @@ class TransactionListener
      */
     public function onTransactionSuccess(Transaction $transaction)
     {
-      $smTransaction = SmTransaction::where('mpm_transaction_id',$transaction->id)->first();
+      $smTransaction = $this->smTransaction->newQuery()->where('mpm_transaction_id',$transaction->id)->first();
       if ($smTransaction){
-         $this->transactionService->updateTransactionStatus($smTransaction);
+
+          $this->transactionService->updateTransactionStatus($smTransaction);
        }
     }
     public function subscribe(Dispatcher $events)

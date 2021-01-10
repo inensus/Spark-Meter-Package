@@ -8,12 +8,13 @@ use Illuminate\Database\Schema\Blueprint;
 class CreateSmCustomers extends Migration{
 
     public function up(){
-
-
         Schema::create('sm_customers', static function(Blueprint $table){
             $table->increments('id');
             $table->string('customer_id')->unique(); // Code of the customer, id of corresponding person in MPM
+            $table->string('site_id');
             $table->integer('mpm_customer_id')->unique(); // Code of the customer, id of corresponding person in MPM
+            $table->decimal('credit_balance');
+            $table->decimal('low_balance_limit');
             $table->string('hash')->nullable();
             $table->timestamps();
         });

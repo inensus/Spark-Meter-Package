@@ -2,44 +2,57 @@
 
 
 namespace Inensus\SparkMeter\Http\Controllers;
-use App\Http\Resources\ApiResource;
-use Illuminate\Routing\Controller;
+
+use Inensus\SparkMeter\Http\Requests\SmCustomerRequest;
+use Inensus\SparkMeter\Http\Resources\SparkResource;
+use Inensus\SparkMeter\Models\SmCustomer;
 use Inensus\SparkMeter\Services\CustomerService;
 use Illuminate\Http\Request;
 class SmCustomerController  implements IBaseController
 {
     private $customerService;
 
-    public function __construct(CustomerService $customerService)
-    {
+    public function __construct(
+        CustomerService $customerService
+    ) {
         $this->customerService = $customerService;
     }
 
-    public function index(Request $request): ApiResource
+    public function index(Request $request): SparkResource
     {
         $customers = $this->customerService->getSmCustomers($request);
-        return new ApiResource($customers);
+        return new SparkResource($customers);
     }
 
-    public function sync(): ApiResource
+    public function sync(): SparkResource
     {
-        return new ApiResource($this->customerService->sync());
+        return new SparkResource($this->customerService->sync());
     }
-    public function checkSync(): ApiResource
+    public function checkSync(): SparkResource
     {
-        return new ApiResource($this->customerService->syncCheck());
+        return new SparkResource($this->customerService->syncCheck());
     }
     public function count()
     {
         return  $this->customerService->getSmCustomersCount() ;
     }
 
-    public function location():ApiResource
+
+    public function connection():SparkResource
     {
-        return  new ApiResource($this->customerService->checkLocationAvailability());
+        return  new SparkResource($this->customerService->checkConnectionAvailability());
     }
-    public function connection():ApiResource
+
+    public function update(SmCustomer $customer,SmCustomerRequest $request):SparkResource
     {
-        return  new ApiResource($this->customerService->checkConnectionAvailability());
+        return new SparkResource($this->customerService->updateCustomerLowBalanceLimit($customer->id,$request->only([
+            'low_balance_limit'
+        ])));
+    }
+    public function search()
+    {
+        $term = request('term');
+        $paginate = request('paginate') ?? 1;
+        return new SparkResource($this->customerService->searchCustomer($term, $paginate));
     }
 }

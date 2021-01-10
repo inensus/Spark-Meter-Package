@@ -8,6 +8,7 @@ use Inensus\SparkMeter\Services\CredentialService;
 use Inensus\SparkMeter\Services\CustomerService;
 use Inensus\SparkMeter\Services\MeterModelService;
 use Inensus\SparkMeter\Services\MenuItemService;
+use Inensus\SparkMeter\Services\SiteService;
 
 class InstallSparkMeterPackage extends Command
 {
@@ -19,6 +20,7 @@ class InstallSparkMeterPackage extends Command
     private $credentialService;
     private $menuItemService;
     private $customerService;
+    private $siteService;
 
     /**
      * Create a new command instance.
@@ -28,13 +30,15 @@ class InstallSparkMeterPackage extends Command
      * @param CredentialService $credentialService
      * @param MenuItemService $menuItemService
      * @param CustomerService $customerService
+     * @param SiteService $siteService
      */
     public function __construct(
         InsertSparkMeterApi $insertSparkMeterApi,
         MeterModelService $meterModelService,
         CredentialService $credentialService,
         MenuItemService $menuItemService,
-        CustomerService $customerService
+        CustomerService $customerService,
+        SiteService $siteService
     ) {
         parent::__construct();
         $this->insertSparkMeterApi = $insertSparkMeterApi;
@@ -42,17 +46,18 @@ class InstallSparkMeterPackage extends Command
         $this->credentialService=$credentialService;
         $this->menuItemService=$menuItemService;
         $this->customerService=$customerService;
+        $this->siteService=$siteService;
     }
 
     public function handle(): void
     {
         $this->info('Installing Spark Meter Integration Package\n');
 
-        $this->info('Copying migrations\n');
+  /*      $this->info('Copying migrations\n');
         $this->call('vendor:publish', [
              '--provider' => "Inensus\SparkMeter\Providers\SparkMeterServiceProvider",
              '--tag' => "migrations"
-         ]);
+         ]);*/
 
          $this->info('Creating database tables\n');
          $this->call('migrate');
@@ -84,9 +89,9 @@ class InstallSparkMeterPackage extends Command
         $this->info('Package installed successfully..');
 
         $connections=$this->customerService->checkConnectionAvailability();
-        if(!$this->customerService->checkLocationAvailability()){
+        if(!$this->siteService->checkLocationAvailability()){
             $this->warn('------------------------------');
-            $this->warn("Spark Meter package needs least one registered Cluster and one MiniGrid related it.");
+            $this->warn("Spark Meter package needs least one registered Cluster.");
             $this->warn("If you have no Cluster, please navigate to #Locations# section and register your locations.");
         }
         if(!$connections['type']||!$connections['group']){

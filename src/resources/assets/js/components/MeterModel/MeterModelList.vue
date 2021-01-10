@@ -26,12 +26,14 @@
                     </md-table-cell>
                     <md-table-cell md-label="Inrush Limit" md-sort-by="inrush_limit">{{ item.inrushLimit }}
                     </md-table-cell>
+                    <md-table-cell md-label="Site" md-sort-by="siteName">{{ item.siteName }}</md-table-cell>
                 </md-table-row>
             </md-table>
 
         </widget>
         <md-progress-bar md-mode="indeterminate" v-if="loading"/>
-        <redirection :redirection-url="redirectionUrl" :dialog-active="redirectDialogActive"/>
+        <redirection :redirection-url="redirectionUrl" :dialog-active="redirectDialogActive"
+                     :message="redirectionMessage"/>
     </div>
 </template>
 
@@ -40,15 +42,19 @@ import Widget from '../Shared/Widget'
 import Redirection from '../Shared/Redirection'
 import { MeterModelService } from '../../services/MeterModelService'
 import { EventBus } from '../../eventbus'
-import { SystemService } from '../../services/SystemService'
+
+import { CredentialService } from '../../services/CredentialService'
+import { SiteService } from '../../services/SiteService'
 
 export default {
     name: 'MeterModelList',
     components: { Widget, Redirection },
     data () {
         return {
-            systemService: new SystemService(),
+
+            credentialService: new CredentialService(),
             meterModelService: new MeterModelService(),
+            siteService: new SiteService(),
             subscriber: 'meter-model-list',
             searchTerm: '',
             loading: false,
@@ -57,21 +63,27 @@ export default {
             redirectionUrl: '/spark-meters/sm-overview',
             redirectDialogActive: false,
             buttonText: 'Get Updates From Spark Meter',
-            label: 'Meter Model Records Not Up to Date.'
+            label: 'Meter Model Records Not Up to Date.',
+            redirectionMessage: 'API credentials not authenticated.'
         }
     },
     mounted () {
-        this.getSystem()
+        this.checkCredential()
         EventBus.$on('pageLoaded', this.reloadList)
     },
     beforeDestroy () {
         EventBus.$off('pageLoaded', this.reloadList)
     },
     methods: {
-        async getSystem () {
+        async checkCredential () {
             try {
-                await this.systemService.getSystemInfo()
-                await this.checkSync()
+                await this.credentialService.getCredential()
+                if (!this.credentialService.credential.isAuthenticated) {
+                    this.redirectDialogActive = true
+                } else {
+                    await this.checkSync()
+                }
+
             } catch (e) {
                 this.redirectDialogActive = true
             }
@@ -80,7 +92,21 @@ export default {
         async checkSync () {
             try {
                 this.loading = true
-                this.isSynced = await this.meterModelService.checkMeterModels()
+                let checkingResult = await this.meterModelService.checkMeterModels()
+                this.isSynced = true
+                if (checkingResult.available_site_count === 0) {
+                    this.redirectionMessage = 'There is no authenticated Site to download Meter Model updates.'
+                    this.redirectionUrl = '/spark-meters/sm-site/page/1'
+                    this.redirectDialogActive = true
+                    return
+                }
+                for (let [k, v] of Object.entries(checkingResult)) {
+                    if (k !== 'available_site_count') {
+                        if (!v.result) {
+                            this.isSynced = false
+                        }
+                    }
+                }
                 this.loading = false
                 if (!this.isSynced) {
                     let swalOptions = {
@@ -107,6 +133,11 @@ export default {
             if (!this.loading) {
                 try {
                     this.loading = true
+                    let sitesSynced = await this.siteService.checkSites()
+                    if (!sitesSynced) {
+                        this.alertNotify('warn', 'Sites must be updated to update Meter Models.')
+                        return
+                    }
                     this.isSynced = false
                     await this.meterModelService.syncMeterModels()
                     EventBus.$emit('widgetContentLoaded', this.subscriber, 1)

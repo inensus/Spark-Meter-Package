@@ -13,4 +13,9 @@ class SmCustomer extends BaseModel
     {
         return $this->belongsTo(Person::class,'mpm_customer_id');
     }
+
+    public function site()
+    {
+        return $this->belongsTo(SmSite::class,'site_id','site_id');
+    }
 }

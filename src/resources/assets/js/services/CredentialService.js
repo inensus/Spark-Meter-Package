@@ -7,16 +7,18 @@ export class CredentialService {
         this.repository = Repository.get('credential')
         this.credential = {
             id: null,
-            apiUrl: null,
-            authenticationToken: null
+            apiKey: null,
+            apiSecret: null,
+            isAuthenticated:null
         }
     }
 
     fromJson (credentialData) {
         this.credential = {
             id: credentialData.id,
-            apiUrl: credentialData.api_url,
-            authenticationToken: credentialData.authentication_token,
+            apiKey: credentialData.api_key,
+            apiSecret: credentialData.api_secret,
+            isAuthenticated: credentialData.is_authenticated
         }
         return this.credential
     }
@@ -39,8 +41,8 @@ export class CredentialService {
         try {
             let credentialPM = {
                 id : this.credential.id,
-                api_url: this.credential.apiUrl,
-                authentication_token: this.credential.authenticationToken
+                api_key: this.credential.apiKey,
+                api_secret: this.credential.apiSecret
             }
             let response = await this.repository.put(credentialPM)
             if (response.status === 200 || response.status === 201 ) {
@@ -55,17 +57,4 @@ export class CredentialService {
         }
     }
 
-    async checkCredential(){
-        try {
-            let response = await this.repository.check()
-            if (response.status === 200) {
-                return this.fromJson(response.data.data)
-            } else {
-                return new ErrorHandler(response.error, 'http', response.status)
-            }
-        } catch (e) {
-            let errorMessage = e.response.data.data.message
-            return new ErrorHandler(errorMessage, 'http')
-        }
-    }
 }

@@ -29,8 +29,8 @@ class SmCredentialRequest extends FormRequest
     {
         return [
 
-            'api_url' =>['required',Rule::unique('sm_api_credentials')->ignore($this->id)],
-            'authentication_token' => 'required',
+            'api_key' =>['required',Rule::unique('sm_api_credentials')->ignore($this->id)],
+            'api_secret' => 'required',
 
         ];
     }

@@ -1,0 +1,31 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Database\Schema\Blueprint;
+
+
+class CreateSmSites extends Migration{
+
+    public function up(){
+
+        Schema::create('sm_sites', static function(Blueprint $table){
+            $table->increments('id');
+            $table->string('site_id')->unique();
+            $table->integer('mpm_mini_grid_id')->unique();
+            $table->string('thundercloud_url')->unique();
+            $table->string('thundercloud_token')->nullable();
+            $table->boolean('is_authenticated')->default(0);
+            $table->boolean('is_online')->default(0);
+
+            $table->string('hash')->nullable();
+            $table->timestamps();
+        });
+    }
+
+
+    public function down(){
+        Schema::dropIfExists('sm_sites');
+    }
+
+}
