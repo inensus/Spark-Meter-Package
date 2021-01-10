@@ -1,38 +1,36 @@
 <?php
 
 namespace Inensus\SparkMeter\Http\Controllers;
-use App\Http\Resources\ApiResource;
-use Illuminate\Http\Request;
 
 use Illuminate\Routing\Controller;
 use Inensus\SparkMeter\Http\Requests\SmCredentialRequest;
+use Inensus\SparkMeter\Http\Resources\SparkResource;
 use Inensus\SparkMeter\Services\CredentialService;
-use Inensus\SparkMeter\Services\SystemService;
-use Inensus\SparkMeter\Models\SmCredential;
+
+
 
 class SmCredentialController extends Controller
 {
     private $credentialService;
-    private $systemService;
-    public function __construct(CredentialService $credentialService,SystemService $systemService )
+    public function __construct(CredentialService $credentialService )
     {
         $this->credentialService=$credentialService;
-        $this->systemService=$systemService;
+
     }
 
-    public function show():ApiResource
+    public function show():SparkResource
     {
-        return new ApiResource($this->credentialService->getCredentials());
+        return new SparkResource($this->credentialService->getCredentials());
     }
 
-    public function update(SmCredentialRequest $request):ApiResource
+    public function update(SmCredentialRequest $request):SparkResource
     {
         $credentialResponse = $this->credentialService->updateCredentials($request->only([
             'id',
-            'api_url',
-            'authentication_token'
+            'api_key',
+            'api_secret'
         ]));
-        return new ApiResource($credentialResponse);
+        return new SparkResource($credentialResponse);
     }
 
 }

@@ -3,9 +3,10 @@
 
 namespace Inensus\SparkMeter\Http\Controllers;
 
-use App\Http\Resources\ApiResource;
+
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Inensus\SparkMeter\Http\Resources\SparkResource;
 use Inensus\SparkMeter\Services\MeterModelService;
 
 
@@ -13,27 +14,30 @@ class SmMeterModelController extends Controller implements IBaseController
 {
     private $meterModelService;
 
-    public function __construct(MeterModelService $meterModelService)
-    {
+    public function __construct(
+        MeterModelService $meterModelService
+    ) {
         $this->meterModelService = $meterModelService;
     }
 
-    public function index(Request $request): ApiResource
+    public function index(Request $request): SparkResource
     {
         $meterModels = $this->meterModelService->getSmMeterModels($request);
-        return new ApiResource($meterModels);
+        return new SparkResource($meterModels);
     }
 
-    public function sync(): ApiResource
+    public function sync(): SparkResource
     {
-        return new ApiResource($this->meterModelService->sync());
+        return new SparkResource($this->meterModelService->sync());
     }
-    public function checkSync(): ApiResource
+
+    public function checkSync(): SparkResource
     {
-        return new ApiResource($this->meterModelService->syncCheck());
+        return new SparkResource($this->meterModelService->syncCheck());
     }
+
     public function count()
     {
-        return  $this->meterModelService->getSmMeterModelsCount() ;
+        return $this->meterModelService->getSmMeterModelsCount();
     }
 }
