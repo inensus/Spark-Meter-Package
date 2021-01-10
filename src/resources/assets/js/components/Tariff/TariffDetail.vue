@@ -156,7 +156,7 @@
                                     class="md-layout-item  md-xlarge-size-100 md-large-size-100 md-medium-size-100 md-small-size-100">
                                 <md-button role="button" :disabled="tariffService.conflicts.length>0"
                                            class="md-raised md-secondary" @click="addTou()">
-                                    <font-awesome-icon icon="plus"/>
+                                    <md-icon>add</md-icon>
                                     Add TOU
                                 </md-button>
                             </div>
@@ -269,7 +269,6 @@ export default {
     },
     created () {
         this.tariffId = this.$route.params.id
-
     },
     mounted () {
         this.getTariff()

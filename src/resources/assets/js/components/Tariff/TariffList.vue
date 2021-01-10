@@ -24,6 +24,7 @@
                     <md-table-cell md-label="Flat Price" md-sort-by="price">{{ item.price}}</md-table-cell>
                     <md-table-cell md-label="Flat Load Limit" md-sort-by="flat_load_limit">{{ item.flatLoadLimit }}
                     </md-table-cell>
+                    <md-table-cell md-label="Site" md-sort-by="siteName">{{ item.siteName }}</md-table-cell>
                     <md-table-cell md-label="#">
                         <md-button class="md-icon-button" @click="editTariff(item.tariffId)">
                             <md-tooltip md-direction="top">Edit</md-tooltip>
@@ -35,7 +36,8 @@
 
         </widget>
         <md-progress-bar md-mode="indeterminate" v-if="loading"/>
-        <redirection :redirection-url="redirectionUrl" :dialog-active="redirectDialogActive"/>
+        <redirection :redirection-url="redirectionUrl" :dialog-active="redirectDialogActive"
+                     :message="redirectionMessage"/>
     </div>
 
 </template>
@@ -46,16 +48,18 @@ import Redirection from '../Shared/Redirection'
 import { EventBus } from '../../eventbus'
 import { TariffService } from '../../services/TariffService'
 import { MeterModelService } from '../../services/MeterModelService'
-import { SystemService } from '../../services/SystemService'
+import { CredentialService } from '../../services/CredentialService'
+import { SiteService } from '../../services/SiteService'
 
 export default {
     name: 'TariffList',
     components: { Widget, Redirection },
     data () {
         return {
-            systemService: new SystemService(),
+            credentialService: new CredentialService(),
             tariffService: new TariffService(),
             meterModelService: new MeterModelService(),
+            siteService: new SiteService(),
             subscriber: 'tariff-list',
             searchTerm: '',
             loading: false,
@@ -64,21 +68,27 @@ export default {
             redirectionUrl: '/spark-meters/sm-overview',
             redirectDialogActive: false,
             buttonText: 'Get Updates From Spark Meter',
-            label: 'Tariff Records Not Up to Date.'
+            label: 'Tariff Records Not Up to Date.',
+            redirectionMessage: 'API credentials not authenticated.'
         }
     },
     mounted () {
-        this.getSystem()
+        this.checkCredential()
         EventBus.$on('pageLoaded', this.reloadList)
     },
     beforeDestroy () {
         EventBus.$off('pageLoaded', this.reloadList)
     },
     methods: {
-        async getSystem () {
+        async checkCredential () {
             try {
-                await this.systemService.getSystemInfo()
-                await this.checkSync()
+                await this.credentialService.getCredential()
+                if (!this.credentialService.credential.isAuthenticated) {
+                    this.redirectDialogActive = true
+                } else {
+                    await this.checkSync()
+                }
+
             } catch (e) {
                 this.redirectDialogActive = true
             }
@@ -86,9 +96,22 @@ export default {
         async checkSync () {
             try {
                 this.loading = true
-                this.isSynced = await this.tariffService.checkTariffs()
+                let checkingResult = await this.tariffService.checkTariffs()
+                this.isSynced = true
+                if (checkingResult.available_site_count === 0) {
+                    this.redirectionMessage = 'There is no authenticated Site to download Tariff updates.'
+                    this.redirectionUrl = '/spark-meters/sm-site/page/1'
+                    this.redirectDialogActive = true
+                    return
+                }
+                for (let [k, v] of Object.entries(checkingResult)) {
+                    if (k !== 'available_site_count') {
+                        if (!v.result) {
+                            this.isSynced = false
+                        }
+                    }
+                }
                 this.loading = false
-
                 if (!this.isSynced) {
                     let swalOptions = {
                         title: 'Updates',
@@ -114,6 +137,11 @@ export default {
             if (!this.loading) {
                 try {
                     this.loading = true
+                    let sitesSynced = await this.siteService.checkSites()
+                    if (!sitesSynced) {
+                        this.alertNotify('warn', 'Sites must be updated to update Tariffs.')
+                        return
+                    }
                     let metersSynced = await this.meterModelService.checkMeterModels()
                     if (!metersSynced) {
                         this.alertNotify('warn', 'MeterModels must be updated to update Tariffs.')

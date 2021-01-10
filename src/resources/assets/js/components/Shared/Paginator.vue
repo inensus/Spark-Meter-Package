@@ -133,8 +133,9 @@ export default {
         EventBus.$on('loadPage', this.eventLoadPage)
     },
     methods: {
-        eventLoadPage (paginator, term = {}) {
+        eventLoadPage (paginatorUrl, term = {}) {
             this.term = term
+            this.paginateService = new PaginateService(paginatorUrl)
             this.loadPage(1)
         },
         defaultItemsPerPage (data) {

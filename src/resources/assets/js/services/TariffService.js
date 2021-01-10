@@ -4,81 +4,89 @@ import { ErrorHandler } from '../Helpers/ErrorHander'
 export class TariffService {
     constructor () {
         this.repository = Repository.get('tariff')
-        this.list=[]
-        this.isSync=false
-        this.tariff={
-            id:null,
-            name:null,
-            flatPrice:null,
-            flatLoadLimit:null,
+        this.list = []
+        this.isSync = false
+        this.tariff = {
+            id: null,
+            name: null,
+            flatPrice: null,
+            flatLoadLimit: null,
 
-            dailyEnergyLimitEnabled:null,
-            dailyEnergyLimitValue:null,
+            siteName: null,
+
+            dailyEnergyLimitEnabled: null,
+            dailyEnergyLimitValue: null,
             dailyEnergyLimitResetHour: null,
 
-            touEnabled:null,
-            tous:[],
+            touEnabled: null,
+            tous: [],
 
-            planEnabled:null,
-            planDuration:null,
-            planPrice:null,
-            planFixedFee:0
+            planEnabled: null,
+            planDuration: null,
+            planPrice: null,
+            planFixedFee: 0
         }
         this.times = this.generateTimes()
         this.conflicts = []
-        this.count=0
-        this.pagingUrl='/api/spark-meters/sm-tariff'
-        this.routeName='/spark-meters/sm-tariff'
+        this.count = 0
+        this.pagingUrl = '/api/spark-meters/sm-tariff'
+        this.routeName = '/spark-meters/sm-tariff'
     }
+
     fromJson (tariffsData) {
-        this.list=[]
+        this.list = []
         for (let t in tariffsData) {
-            let tariff={
-                id :tariffsData[t].id,
-                tariffId:tariffsData[t].tariff_id,
-                name :tariffsData[t].mpm_tariff.name,
-                price:tariffsData[t].mpm_tariff.price/100,
-                flatLoadLimit:tariffsData[t].flat_load_limit
+            let tariff = {
+                id: tariffsData[t].id,
+                tariffId: tariffsData[t].tariff_id,
+                name: tariffsData[t].mpm_tariff.name,
+                price: tariffsData[t].mpm_tariff.price / 100,
+                flatLoadLimit: tariffsData[t].flat_load_limit,
+                siteName: tariffsData[t].site.mpm_mini_grid.name
             }
             this.list.push(tariff)
         }
     }
-    fromSparkJson(sparkTariff){
-        this.tariff={
-            id:sparkTariff.id,
-            name:sparkTariff.name,
-            flatPrice:sparkTariff.flat_price,
-            flatLoadLimit:sparkTariff.flat_load_limit,
-            dailyEnergyLimitEnabled:sparkTariff.daily_energy_limit_enabled,
-            dailyEnergyLimitValue:sparkTariff.daily_energy_limit_value,
-            touEnabled:sparkTariff.tou_enabled,
-            tous:sparkTariff.tous,
-            planEnabled:sparkTariff.plan_enabled,
-            planDuration:sparkTariff.plan_duration,
-            planPrice:sparkTariff.plan_price,
-            planFixedFee:sparkTariff.access_rate_amount
+
+    fromSparkJson (sparkTariff) {
+        this.tariff = {
+            id: sparkTariff.id,
+            name: sparkTariff.name,
+            flatPrice: sparkTariff.flat_price,
+            flatLoadLimit: sparkTariff.flat_load_limit,
+            dailyEnergyLimitEnabled: sparkTariff.daily_energy_limit_enabled,
+            dailyEnergyLimitValue: sparkTariff.daily_energy_limit_value,
+            touEnabled: sparkTariff.tou_enabled,
+            tous: sparkTariff.tous,
+            planEnabled: sparkTariff.plan_enabled,
+            planDuration: sparkTariff.plan_duration,
+            planPrice: sparkTariff.plan_price,
+            planFixedFee: sparkTariff.access_rate_amount
         }
-        if(sparkTariff.daily_energy_limit_reset_hour){
-            let  hour =sparkTariff.daily_energy_limit_reset_hour
-            this.tariff.dailyEnergyLimitResetHour = hour< 10 ? '0' + hour + ':00' : hour + ':00'
+        if (sparkTariff.daily_energy_limit_reset_hour) {
+            let hour = sparkTariff.daily_energy_limit_reset_hour
+            this.tariff.dailyEnergyLimitResetHour = hour < 10 ? '0' + hour + ':00' : hour + ':00'
 
         }
-        if (this.tariff.tous){
-            let price =this.tariff.flatPrice
-            this.tariff.tous=  this.tariff.tous.map((x)=> {
+        if (this.tariff.tous) {
+            let price = this.tariff.flatPrice
+            this.tariff.tous = this.tariff.tous.map((x) => {
                 return {
-                    id :-1 * Math.floor(Math.random() * 10000000),
-                    end:x.end,
-                    start:x.start,
+                    id: -1 * Math.floor(Math.random() * 10000000),
+                    end: x.end,
+                    start: x.start,
                     cost: (price / 100) * x.value,
-                    value:x.value
-                }})
+                    value: x.value
+                }
+            })
         }
     }
+
     updateList (data) {
         this.list = []
         return this.fromJson(data)
     }
+
     async getTariffs () {
         try {
             let response = await this.repository.list()
@@ -92,11 +100,12 @@ export class TariffService {
             return new ErrorHandler(errorMessage, 'http')
         }
     }
+
     async getTariffsCount () {
         try {
             let response = await this.repository.count()
             if (response.status === 200) {
-                this.count= response.data
+                this.count = response.data
                 return this.count
             } else {
                 return new ErrorHandler(response.error, 'http', response.status)
@@ -106,6 +115,7 @@ export class TariffService {
             return new ErrorHandler(errorMessage, 'http')
         }
     }
+
     async syncTariffs () {
         try {
             let response = await this.repository.sync()
@@ -119,11 +129,12 @@ export class TariffService {
             return new ErrorHandler(errorMessage, 'http')
         }
     }
+
     async checkTariffs () {
         try {
             let response = await this.repository.syncCheck()
             if (response.status === 200) {
-                return response.data.data.result
+                return response.data.data
 
             } else {
                 return new ErrorHandler(response.error, 'http', response.status)
@@ -133,7 +144,8 @@ export class TariffService {
             return new ErrorHandler(errorMessage, 'http')
         }
     }
-    async getTariff(tariffId){
+
+    async getTariff (tariffId) {
         try {
             let response = await this.repository.get(tariffId)
             if (response.status === 200) {
@@ -147,28 +159,29 @@ export class TariffService {
             return new ErrorHandler(errorMessage, 'http')
         }
     }
-    async updateTariff(){
+
+    async updateTariff () {
         try {
-            this.tariff.tous=this.tariff.tous.map((x)=>{
+            this.tariff.tous = this.tariff.tous.map((x) => {
                 return {
-                    start:x.start,
-                    end:x.end,
+                    start: x.start,
+                    end: x.end,
                     value: Number(x.value)
                 }
             })
-            if (this.tariff.dailyEnergyLimitResetHour){
-                this.tariff.dailyEnergyLimitResetHour= +this.tariff.dailyEnergyLimitResetHour.split(':')[0]
-            }else{
-                this.tariff.dailyEnergyLimitResetHour=0
+            if (this.tariff.dailyEnergyLimitResetHour) {
+                this.tariff.dailyEnergyLimitResetHour = +this.tariff.dailyEnergyLimitResetHour.split(':')[0]
+            } else {
+                this.tariff.dailyEnergyLimitResetHour = 0
             }
-            if (!this.tariff.planDuration){
-                this.tariff.planDuration='1m'
+            if (!this.tariff.planDuration) {
+                this.tariff.planDuration = '1m'
             }
-            this.tariff.flatPrice= +this.tariff.flatPrice
-            this.tariff.planPrice= +this.tariff.planPrice
-            this.tariff.flatLoadLimit= +this.tariff.flatLoadLimit
-            this.tariff.planFixedFee= +this.tariff.planFixedFee
-            this.tariff.dailyEnergyLimitValue= +this.tariff.dailyEnergyLimitValue
+            this.tariff.flatPrice = +this.tariff.flatPrice
+            this.tariff.planPrice = +this.tariff.planPrice
+            this.tariff.flatLoadLimit = +this.tariff.flatLoadLimit
+            this.tariff.planFixedFee = +this.tariff.planFixedFee
+            this.tariff.dailyEnergyLimitValue = +this.tariff.dailyEnergyLimitValue
             let response = await this.repository.put(this.tariff)
             if (response.status === 200) {
                 return response.data.data
@@ -180,6 +193,7 @@ export class TariffService {
             return new ErrorHandler(errorMessage, 'http')
         }
     }
+
     addTou () {
         let tou = {
             id: -1 * Math.floor(Math.random() * 10000000),
@@ -198,11 +212,12 @@ export class TariffService {
             this.tariff.tous.push(tou)
             this.findConflicts()
             if (this.tariff.tous) {
-                this.tariff.touEnabled=true
+                this.tariff.touEnabled = true
             }
         }
 
     }
+
     removeTou (id) {
         let tou = this.tariff.tous.filter(x => x.id === id)[0]
         if (tou !== null) {
@@ -212,12 +227,13 @@ export class TariffService {
                 }
             }
             this.findConflicts()
-            if (this.tariff.tous.length===0){
-                this.tariff.touEnabled=false
+            if (this.tariff.tous.length === 0) {
+                this.tariff.touEnabled = false
             }
         }
 
     }
+
     getMinimumAvailableTime (type) {
         let endTime = this.tariff.tous.reduce((acc, val) => {
             let timeEnd = Number(val.end.split(':')[0])
@@ -242,6 +258,7 @@ export class TariffService {
 
         }
     }
+
     generateTimes () {
         let times = []
         for (let i = 0; i < 24; i++) {
@@ -256,17 +273,19 @@ export class TariffService {
         }
         return times
     }
+
     findConflicts () {
-        let overlaps=[]
-        let data=[]
-        this.tariff.tous.forEach((e)=>{
-            overlaps= this.checkOverlaps(e,data)
+        let overlaps = []
+        let data = []
+        this.tariff.tous.forEach((e) => {
+            overlaps = this.checkOverlaps(e, data)
         })
         this.conflicts = overlaps
     }
+
     checkOverlaps (usage, data) {
-        let overlaps=[]
-        let start =Number(usage.start.split(':')[0])
+        let overlaps = []
+        let start = Number(usage.start.split(':')[0])
         let end = Number(usage.end.split(':')[0])
         // eslint-disable-next-line no-constant-condition
         while (true) {
@@ -284,10 +303,11 @@ export class TariffService {
         }
         return overlaps
     }
-    planEnabledChange(event){
-        if (!event){
-            this.tariff.planPrice=null
-            this.tariff.planFixedFee=0
+
+    planEnabledChange (event) {
+        if (!event) {
+            this.tariff.planPrice = null
+            this.tariff.planFixedFee = 0
         }
 
     }
