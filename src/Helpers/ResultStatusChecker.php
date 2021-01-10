@@ -10,7 +10,8 @@ class ResultStatusChecker
 {
     public function CheckApiResult($result)
     {
-        if ($result['status'] !== 'success') {
+
+        if ($result['error'] !== false && $result['error']!==null ) {
             throw new SparkAPIResponseException($result['error']);
         }
         return $result;
