@@ -4,24 +4,32 @@ namespace Inensus\SparkMeter\Observers;
 
 use App\Models\AccessRate\AccessRate;
 use App\Models\Meter\MeterTariff;
-use Illuminate\Support\Facades\Log;
+
 use Inensus\SparkMeter\Helpers\SmTableEncryption;
 use Inensus\SparkMeter\Services\TariffService;
 use Inensus\SparkMeter\Models\SmTariff;
-use function Psy\debug;
+
 
 class MeterTariffObserver
 {
     private $tariffService;
     private $smTableEncryption;
-    public function __construct(TariffService $tariffService,SmTableEncryption $smTableEncryption)
-    {
+    private $smTariff;
+    private $accessRate;
+    public function __construct(
+        TariffService $tariffService,
+        SmTableEncryption $smTableEncryption,
+        SmTariff $smTariff,
+        AccessRate $accessRate
+    ) {
         $this->tariffService = $tariffService;
         $this->smTableEncryption=$smTableEncryption;
+        $this->smTariff=$smTariff;
+        $this->accessRate=$accessRate;
     }
     public function updated(MeterTariff $tariff)
     {
-       $smTariff = SmTariff::query()->where('mpm_tariff_id',$tariff->id)->first();
+       $smTariff = $this->smTariff->newQuery()->where('mpm_tariff_id',$tariff->id)->first();
        if ($smTariff){
            $sparkTariff = $this->tariffService->getSparkTariffInfo($smTariff->tariff_id);
            $tous=[];
@@ -32,7 +40,7 @@ class MeterTariffObserver
                    'value' => $tou['value']
                ];
            }
-           $accessRate = AccessRate::where('tariff_id', $tariff->id)->first();
+           $accessRate = $this->accessRate->newQuery()->where('tariff_id', $tariff->id)->first();
            $tariffData =[
                'id'=>$smTariff->tariff_id,
                'name'=>$tariff->name,
