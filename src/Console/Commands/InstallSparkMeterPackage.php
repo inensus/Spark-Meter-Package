@@ -53,11 +53,11 @@ class InstallSparkMeterPackage extends Command
     {
         $this->info('Installing Spark Meter Integration Package\n');
 
-  /*      $this->info('Copying migrations\n');
+        $this->info('Copying migrations\n');
         $this->call('vendor:publish', [
              '--provider' => "Inensus\SparkMeter\Providers\SparkMeterServiceProvider",
              '--tag' => "migrations"
-         ]);*/
+         ]);
 
          $this->info('Creating database tables\n');
          $this->call('migrate');
