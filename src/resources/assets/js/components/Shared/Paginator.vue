@@ -3,10 +3,10 @@
         <div class="md-layout-item md-size-33">
             <div class="col-xs-12 hidden-xs" :class="show_per_page === true ? 'col-sm-4 col-lg-5':'col-sm-6 col-lg-6'">
                 <div
-                    class="dataTables_info"
-                    id="datatable_col_reorder_info2"
-                    role="status"
-                    aria-live="polite"
+                        class="dataTables_info"
+                        id="datatable_col_reorder_info2"
+                        role="status"
+                        aria-live="polite"
                 >
                     Showing {{paginateService.paginator.from}} to {{paginateService.paginator.to}}
                     of {{paginateService.paginator.totalEntries}} entries
@@ -17,11 +17,11 @@
         <div class="md-layout-item md-size-33">
             <div class="col-sm-2 col-lg-1 col-xs-6" v-if="show_per_page===true">
                 <div
-                    style="float:right"
-                    class="dataTables_info"
-                    id="datatable_col_reorder_info"
-                    role="status"
-                    aria-live="polite"
+                        style="float:right"
+                        class="dataTables_info"
+                        id="datatable_col_reorder_info"
+                        role="status"
+                        aria-live="polite"
                 >
                     Per Page
                     <select name="per_page" id="per_page" @change="defaultItemsPerPage">
@@ -44,12 +44,12 @@
                         <li :class="paginateService.paginator.currentPage>1 ? 'paginate_button previous' :' paginate_button previous disabled'"
                             id="datatable_col_reorder_previous">
                             <a
-                                v-if="!loading"
-                                href="javascript:void(0);"
-                                aria-controls="datatable_col_reorder"
-                                data-dt-idx="0"
-                                tabindex="0"
-                                @click="loadPage(--paginateService.paginator.currentPage)"
+                                    v-if="!loading"
+                                    href="javascript:void(0);"
+                                    aria-controls="datatable_col_reorder"
+                                    data-dt-idx="0"
+                                    tabindex="0"
+                                    @click="loadPage(--paginateService.paginator.currentPage)"
                             >Previous</a>
                             <a href="javascript:void(0);" disabled="disabled" v-else>Previous</a>
                         </li>
@@ -57,29 +57,30 @@
                             <li :key="index" :class="page===paginateService.paginator.currentPage?' active':''"
                                 v-if="paginateService.paginator.currentPage - index <4 && paginateService.paginator.currentPage - index  > 0 ">
                                 <a
-                                    v-if="(index < paginateService.paginator.currentPage+2) && index > paginateService.paginator.currentPage-4"
-                                    href="javascript:void(0);"
-                                    @click="loadPage(page)"
+                                        v-if="(index < paginateService.paginator.currentPage+2) && index > paginateService.paginator.currentPage-4"
+                                        href="javascript:void(0);"
+                                        @click="loadPage(page)"
                                 >{{page}}</a>
 
                                 <a v-else-if="index === (2+ paginateService.paginator.currentPage)">...</a>
                                 <a
-                                    v-else-if="(index > Math.abs(paginateService.paginator.totalPage -3)) "
-                                    href="javascript:void(0);"
-                                    @click="loadPage(page)"
+                                        v-else-if="(index > Math.abs(paginateService.paginator.totalPage -3)) "
+                                        href="javascript:void(0);"
+                                        @click="loadPage(page)"
                                 >{{page}}</a>
 
                             </li>
                         </template>
 
-                        <li :class="(paginateService.paginator.currentPage < paginateService.paginator.totalPage ? 'paginate_button next':'paginate_button next disabled')" id="datatable_col_reorder_next">
+                        <li :class="(paginateService.paginator.currentPage < paginateService.paginator.totalPage ? 'paginate_button next':'paginate_button next disabled')"
+                            id="datatable_col_reorder_next">
                             <a
-                                v-if="!loading"
-                                href="javascript:void(0);"
-                                aria-controls="datatable_col_reorder"
-                                data-dt-idx="8"
-                                tabindex="0"
-                                @click="loadPage(++paginateService.paginator.currentPage)"
+                                    v-if="!loading"
+                                    href="javascript:void(0);"
+                                    aria-controls="datatable_col_reorder"
+                                    data-dt-idx="8"
+                                    tabindex="0"
+                                    @click="loadPage(++paginateService.paginator.currentPage)"
                             >Next</a>
                             <a href="javascript:void(0);" v-else>Next</a>
                         </li>
@@ -94,80 +95,81 @@
 <script>
 
 
-import { PaginateService } from '../../services/PaginateService'
-import { EventBus } from '../../eventbus'
+  import { PaginateService } from '../../services/PaginateService'
+  import { EventBus } from '../../eventbus'
 
-export default {
+  export default {
     name: 'Paginator',
     props: {
-        url: {
-            default: null
-        },
-        subscriber: {
-            type: String,
-            default: ''
-        },
-        route_name: {
-            type: String,
-            default: ''
-        },
-        show_per_page: {
-            type: Boolean,
-            default: false
-        }
+      url: {
+        default: null
+      },
+      subscriber: {
+        type: String,
+        default: ''
+      },
+      route_name: {
+        type: String,
+        default: ''
+      },
+      show_per_page: {
+        type: Boolean,
+        default: false
+      }
     },
     data () {
-        return {
-            paginateService: new PaginateService(this.url),
-            loading: false,
-            term: {},
-            threeDots: false,
-        }
+      return {
+        paginateService: new PaginateService(this.url),
+        loading: false,
+        term: {},
+        threeDots: false,
+      }
     },
     mounted () {
-        if (this.$route.params.page_number !== undefined) {
-            this.loadPage(this.$route.params.page_number)
-        } else {
-            this.loadPage(1)
-        }
-        EventBus.$on('loadPage', this.eventLoadPage)
+      let pageNumber = this.$route.query.page
+      this.loadPage(pageNumber)
+      EventBus.$on('loadPage', this.eventLoadPage)
+
     },
     methods: {
-        eventLoadPage (paginatorUrl, term = {}) {
-            this.term = term
-            this.paginateService = new PaginateService(paginatorUrl)
-            this.loadPage(1)
-        },
-        defaultItemsPerPage (data) {
-            this.paginateService.paginator.perPage = data.target.value
-            this.loadPage(this.paginateService.paginator.currentPage)
-        },
-        async loadPage (pageNumber = 1) {
-            if (this.loading)
-                return
-            this.loading = true
-            await this.paginateService.loadPage(pageNumber, this.term)
-            if (this.route_name !== undefined && !this.route_name.includes('/page/1')) {
-                // eslint-disable-next-line no-unused-vars
-                this.$router.push(this.route_name + '/page/' + pageNumber).catch(error => {
-                    if (error.name !== 'NavigationDuplicated') {
-                        throw error
-                    }
-                })
-            }
-            this.loading = false
-            EventBus.$emit('pageLoaded', this.subscriber, this.paginateService.paginator.data)
-        }
+      eventLoadPage (paginatorUrl, term = {}) {
+        this.term = term
+        this.paginateService = new PaginateService(paginatorUrl)
+        this.loadPage(1)
+      },
+      defaultItemsPerPage (data) {
+        this.paginateService.paginator.perPage = data.target.value
+        this.loadPage(this.paginateService.paginator.currentPage)
+      },
+      async loadPage (pageNumber = 1) {
+        if (this.loading)
+          return
+        this.loading = true
+        await this.paginateService.loadPage(pageNumber, this.term)
+        this.$router.push({
+          query: Object.assign({}, this.$route.query, {
+            page: pageNumber,
+            per_page: this.paginator.perPage
+          })
+        }).catch(error => {
+          if (error.name !== 'NavigationDuplicated') {
+            throw error
+          }
+        })
+        this.loading = false
+        EventBus.$emit('pageLoaded', this.subscriber, this.paginateService.paginator.data)
+      }
     },
 
-}
+  }
 </script>
 
 
 <style scoped lang="scss">
     .paginate-area {
-        width: 100%!important;
+        width: 100% !important;
     }
+
     .pagination {
         color: #ac2925;
         list-style: none;

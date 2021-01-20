@@ -1,21 +1,21 @@
 let routes = [
     {
-        path: '/spark-meters/sm-site/page/:page_number',
+        path: '/spark-meters/sm-site',
         component: require('./plugins/spark-meter/js/components/Site/SiteList').default,
         meta: { layout: 'default' },
     },
     {
-        path: '/spark-meters/sm-meter-model/page/:page_number',
+        path: '/spark-meters/sm-meter-model',
         component: require('./plugins/spark-meter/js/components/MeterModel/MeterModelList').default,
         meta: { layout: 'default' },
     },
     {
-        path: '/spark-meters/sm-customer/page/:page_number',
+        path: '/spark-meters/sm-customer',
         component: require('./plugins/spark-meter/js/components/Customer/CustomerList').default,
         meta: { layout: 'default' },
     },
     {
-        path: '/spark-meters/sm-tariff/page/:page_number',
+        path: '/spark-meters/sm-tariff',
         component: require('./plugins/spark-meter/js/components/Tariff/TariffList').default,
         meta: { layout: 'default' },
     },
