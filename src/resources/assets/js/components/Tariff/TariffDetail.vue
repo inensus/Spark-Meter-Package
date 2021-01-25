@@ -287,7 +287,7 @@ export default {
                     this.loading = false
                     this.alertNotify('success', 'Tariff has updated successfully.')
                     await this.tariffService.syncTariffs()
-                    this.$router.push({ path: '/spark-meters/sm-tariff/page/1' })
+                    this.$router.push({ path: '/spark-meters/sm-tariff' })
                 } catch (e) {
                     this.loading = false
                     this.alertNotify('error', e.message)
