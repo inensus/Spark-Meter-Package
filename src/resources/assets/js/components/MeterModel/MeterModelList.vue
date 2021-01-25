@@ -96,7 +96,7 @@ export default {
                 this.isSynced = true
                 if (checkingResult.available_site_count === 0) {
                     this.redirectionMessage = 'There is no authenticated Site to download Meter Model updates.'
-                    this.redirectionUrl = '/spark-meters/sm-site/page/1'
+                    this.redirectionUrl = '/spark-meters/sm-site'
                     this.redirectDialogActive = true
                     return
                 }
