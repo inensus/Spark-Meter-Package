@@ -68,11 +68,17 @@
                                 <md-icon>close</md-icon>
                             </md-button>
                         </div>
-                        <div v-else>
+                        <div v-else class="edit-button-area">
                             <md-button class="md-icon-button" @click="editThundercloudToken = item.id">
                                 <md-icon>edit</md-icon>
                             </md-button>
+                            <md-button class="md-icon-button" :disabled="!item.isAuthenticated"
+                                       @click="updateSite(item)">
+                                <md-tooltip md-direction="top">Is Online Check</md-tooltip>
+                                <md-icon>online_prediction</md-icon>
+                            </md-button>
                         </div>
+
                     </md-table-cell>
 
 
@@ -217,5 +223,8 @@ export default {
 </script>
 
 <style scoped>
-
+    .edit-button-area {
+        display: inline-flex;
+        margin-left: -2rem;
+    }
 </style>
