@@ -137,7 +137,7 @@ class TransactionService
                 "cursor" => null
             ];
             $result = $this->sparkMeterApiRequests->postToKoios($koiosUrl, $params);
-            $cursor = $result['cursor'];
+            $params['cursor'] = $result['cursor'];
             $transactions = $result['results'];
             do {
                 if (is_array($transactions) && count($transactions)) {
@@ -148,104 +148,120 @@ class TransactionService
                                 $syncResult = $syncCheck[$transaction['site']]['result'];
                                 $syncMessage = $syncCheck[$transaction['site']]['message'];
                                 if ($syncResult) {
-                                    $sparkTransactionId = $transaction['transaction_id'];
-
+                                    switch ($transaction['state']) {
+                                        case "processed":
+                                            $status = 1;
+                                            break;
+                                        case "pending":
+                                            $status = 0;
+                                            break;
+                                        case "reversed":
+                                        case "error":
+                                            $status = -1;
+                                            break;
+                                        default:
+                                            $status = 1;
+                                    }
                                     $transactionRecord = $this->sparkTransaction->newQuery()->where('transaction_id',
-                                        $sparkTransactionId)->first();
+                                        $transaction['transaction_id'])->first();
                                     if (!$transactionRecord) {
                                         $site = $this->sparkSiteService->getThunderCloudInformation($transaction['site']);
                                         if ($site) {
                                             if ($site->is_authenticated > 0) {
+                                                if (array_key_exists('customer', $transaction['to'])) {
+                                                    $sparkTransaction = $this->sparkTransaction->newQuery()->create([
+                                                        'site_id' => $transaction['site'],
+                                                        'customer_id' => $transaction['to']['customer']['id'],
+                                                        'transaction_id' => $transaction['transaction_id'],
+                                                        'status' => $transaction['state'],
+                                                        'external_id' => $transaction['external_id'],
 
-                                                $transactionResult = $this->sparkMeterApiRequests->getInfo($this->rootUrl,
-                                                    $sparkTransactionId, $site->site_id);
-                                                $transactionInfo = $transactionResult['transaction'];
+                                                    ]);
+                                                    if (!$transaction['reference_id']) {
 
-                                                $sparkTransaction = $this->sparkTransaction->newQuery()->create([
-                                                    'site_id' => $transaction['site'],
-                                                    'customer_id' => $transactionInfo['to']['id'],
-                                                    'transaction_id' => $sparkTransactionId,
-                                                    'status' => $transactionInfo['status'],
-                                                    'external_id' => $transactionInfo['external_id']
-                                                ]);
-                                                if (!$transaction['reference_id']) {
+                                                        $thirdPartyTransaction = $this->thirdPartyTransaction->newQuery()->make([
+                                                            'transaction_id' => $transaction['transaction_id'],
+                                                            'status' => $status,
+                                                        ]);
+                                                        $thirdPartyTransaction->manufacturerTransaction()->associate($sparkTransaction);
+                                                        $thirdPartyTransaction->save();
 
-                                                    switch ($transaction['state']) {
-                                                        case "processed":
-                                                            $status = 1;
-                                                            break;
-                                                        case "pending":
-                                                            $status = 0;
-                                                            break;
-                                                        case "reversed":
-                                                        case "error":
-                                                            $status = -1;
-                                                            break;
-                                                        default:
-                                                            $status = 1;
+                                                        $sparkCustomer = $this->sparkCustomerService->getSmCustomerByCustomerId($sparkTransaction->customer_id);
+                                                        if ($sparkCustomer) {
+                                                            $meterParameter = $sparkCustomer->mpmPerson->meters[0];
+                                                            $mainTransaction = $this->transaction->newQuery()->make([
+                                                                'amount' => (int)$transaction['amount'],
+                                                                'sender' => $sparkCustomer->mpmPerson->addresses[0]->phone ?? '-',
+                                                                'message' => $meterParameter->meter->serial_number,
+                                                                'type' => 'energy',
+                                                                'created_at' => $transaction['created'],
+                                                                'updated_at' => $transaction['created'],
+                                                            ]);
+
+                                                            $mainTransaction->originalTransaction()->associate($thirdPartyTransaction);
+                                                            $mainTransaction->save();
+
+                                                            $owner = $meterParameter->owner;
+                                                            $smTariff = $this->sparkTariff->newQuery()->where('mpm_tariff_id',
+                                                                $meterParameter->tariff()->first()->id)->first();
+                                                            $tariff = $this->sparkTariffService->singleSync($smTariff);
+                                                            $chargedEnergy = (int)$transaction['amount'] / ($tariff->total_price / 100);
+
+                                                            $token = $sparkTransaction->site_id . '-' . $transaction['source'] . '-' . $sparkTransaction->customer_id;
+
+                                                            $token = $this->meterToken->newQuery()->make([
+                                                                'token' => $token,
+                                                                'energy' => $chargedEnergy,
+
+                                                            ]);
+                                                            $token->transaction()->associate($mainTransaction);
+                                                            $token->meter()->associate($meterParameter->meter);
+                                                            //save token
+                                                            $token->save();
+
+                                                            event('payment.successful', [
+                                                                'amount' => $mainTransaction->amount,
+                                                                'paymentService' => $mainTransaction->original_transaction_type,
+                                                                'paymentType' => 'energy',
+                                                                'sender' => $mainTransaction->sender,
+                                                                'paidFor' => $token,
+                                                                'payer' => $owner,
+                                                                'transaction' => $mainTransaction,
+                                                            ]);
+                                                        }
                                                     }
-                                                    $thirdPartyTransaction = $this->thirdPartyTransaction->newQuery()->make([
-                                                        'transaction_id' => $sparkTransactionId,
-                                                        'status' => $status,
-                                                    ]);
-                                                    $thirdPartyTransaction->manufacturerTransaction()->associate($sparkTransaction);
-                                                    $thirdPartyTransaction->save();
-
-                                                    $sparkCustomer = $this->sparkCustomerService->getSmCustomerByCustomerId($sparkTransaction->customer_id);
-                                                    $meterParameter = $sparkCustomer->mpmPerson->meters[0];
-                                                    $mainTransaction = $this->transaction->newQuery()->make([
-                                                        'amount' => (int)$transaction['amount'],
-                                                        'sender' => $sparkCustomer->mpmPerson->addresses[0]->phone,
-                                                        'message' => $meterParameter->meter->serial_number,
-                                                        'type' => 'energy',
-                                                        'created_at' => $transaction['created'],
-                                                        'updated_at' => $transaction['created'],
-                                                    ]);
-                                                    $mainTransaction->originalTransaction()->associate($thirdPartyTransaction);
-                                                    $mainTransaction->save();
-                                                    $owner = $meterParameter->owner;
-                                                    $smTariff = $this->sparkTariff->newQuery()->where('mpm_tariff_id',
-                                                        $meterParameter->tariff()->first()->id)->first();
-                                                    $tariff = $this->sparkTariffService->singleSync($smTariff);
-                                                    $chargedEnergy = (int)$transaction['amount'] / ($tariff->total_price / 100);
-
-                                                    $token = $sparkTransaction->site_id . '-' . $transaction['source'] . '-' . $sparkTransaction->customer_id;
-
-                                                    $token = $this->meterToken->newQuery()->make([
-                                                        'token' => $token,
-                                                        'energy' => $chargedEnergy,
-
-                                                    ]);
-                                                    $token->transaction()->associate($mainTransaction);
-                                                    $token->meter()->associate($meterParameter->meter);
-                                                    //save token
-                                                    $token->save();
-
-                                                    event('payment.successful', [
-                                                        'amount' => $mainTransaction->amount,
-                                                        'paymentService' => $mainTransaction->original_transaction_type,
-                                                        'paymentType' => 'energy',
-                                                        'sender' => $mainTransaction->sender,
-                                                        'paidFor' => $token,
-                                                        'payer' => $owner,
-                                                        'transaction' => $mainTransaction,
-                                                    ]);
                                                 }
+
                                             }
                                         }
+                                    } else {
+                                        $transactionRecord->update([
+                                            'status' => $transaction['state'],
+                                        ]);
+                                        $thirdPartyTransaction = $this->thirdPartyTransaction->newQuery()->where('transaction_id',
+                                            $transaction['transaction_id'])->first();
+                                        if ($thirdPartyTransaction) {
+                                            $thirdPartyTransaction->update([
+                                                'status' => $status,
+                                            ]);
+                                        }
+
                                     }
                                 } else {
                                     Log::debug('Transaction synchronising cancelled', ['message' => $syncMessage]);
                                 }
+
+
                             }
 
                         }
                     }
+                    Log::debug('cursor', ['message' => $params['cursor']]);
                     $result = $this->sparkMeterApiRequests->postToKoios($koiosUrl, $params);
-                    $cursor = $result['cursor'];
+                    $params['cursor'] = $result['cursor'];
                     $transactions = $result['results'];
                 }
-            } while ($cursor);
+            } while ($params['cursor']);
         } else {
             Log::debug('Transaction synchronising cancelled', ['message' => $syncCheck['error']['message']]);
         }
