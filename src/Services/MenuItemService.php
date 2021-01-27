@@ -3,6 +3,8 @@
 
 namespace Inensus\SparkMeter\Services;
 
+use App\Models\MenuItems;
+
 class MenuItemService
 {
     private $menuItems;
