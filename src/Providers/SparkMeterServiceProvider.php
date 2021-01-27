@@ -11,7 +11,8 @@ use Inensus\SparkMeter\Console\Commands\SparkMeterTransactionStatusCheck;
 use Inensus\SparkMeter\Console\Commands\SparkMeterTransactionSync;
 use Inensus\SparkMeter\Console\Commands\SparkMeterUpdatesGetter;
 use Inensus\SparkMeter\Console\Kernel;
-
+use Illuminate\Support\Collection;
+use Illuminate\Filesystem\Filesystem;
 
 use Inensus\SparkMeter\Models\SmTransaction;
 use Inensus\SparkMeter\SparkMeterApi;
@@ -21,14 +22,14 @@ class SparkMeterServiceProvider extends ServiceProvider
     /**
      * Bootstrap the application services.
      */
-    public function boot()
+    public function boot(Filesystem $filesystem)
     {
 
            $this->app->register(SparkMeterRouteServiceProvider::class);
            if ($this->app->runningInConsole()) {
                 $this->publishConfigFiles();
                 $this->publishVueFiles();
-                $this->publishMigrations();
+                $this->publishMigrations($filesystem);
                 $this->commands([
                     InstallSparkMeterPackage::class,
                     SparkMeterTransactionStatusCheck::class,
@@ -80,20 +81,20 @@ class SparkMeterServiceProvider extends ServiceProvider
         ]);
     }
 
-    public function publishMigrations()
+    public function publishMigrations($filesystem)
     {
-        if (!class_exists('CreateSmOrganizations')) {
-            $timestamp = date('Y_m_d_His');
-            $this->publishes([
-                __DIR__ . '/../../database/migrations/create_sm_api_credentials.php.stub' => $this->app->databasePath() . "/migrations/{$timestamp}_create_sm_api_credentials.php",
-                __DIR__ . '/../../database/migrations/create_sm_customers.php.stub' => $this->app->databasePath() . "/migrations/{$timestamp}_create_sm_customers.php",
-                __DIR__ . '/../../database/migrations/create_sm_meter_models.php.stub' => $this->app->databasePath() . "/migrations/{$timestamp}_create_sm_meter_models.php",
-                __DIR__ . '/../../database/migrations/create_sm_tariffs.php.stub' => $this->app->databasePath() . "/migrations/{$timestamp}_create_sm_tariffs.php",
-                __DIR__ . '/../../database/migrations/create_sm_transactions.php.stub' => $this->app->databasePath() . "/migrations/{$timestamp}_create_sm_transactions.php",
-                __DIR__ . '/../../database/migrations/create_sm_sites.php.stub' => $this->app->databasePath() . "/migrations/{$timestamp}_create_sm_sites.php",
-                __DIR__ . '/../../database/migrations/create_sm_organizations.php.stub' => $this->app->databasePath() . "/migrations/{$timestamp}_create_sm_organizations.php",
+        $this->publishes([
+            __DIR__.'/../../database/migrations/create_spark_tables.php.stub' => $this->getMigrationFileName($filesystem),
+        ], 'migrations');
+    }
 
-            ], 'migrations');
-        }
+    protected function getMigrationFileName(Filesystem $filesystem): string
+    {
+        $timestamp = date('Y_m_d_His');
+        return Collection::make($this->app->databasePath() . DIRECTORY_SEPARATOR . 'migrations' . DIRECTORY_SEPARATOR)
+            ->flatMap(function ($path) use ($filesystem) {
+                return $filesystem->glob($path . '*_create_steama_tables.php');
+            })->push($this->app->databasePath() . "/migrations/{$timestamp}_create_steama_tables.php")
+            ->first();
     }
 }

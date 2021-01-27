@@ -65,7 +65,8 @@ class InstallSparkMeterPackage extends Command
         $this->info('Copying vue files\n');
         $this->call('vendor:publish', [
             '--provider' => "Inensus\SparkMeter\Providers\SparkMeterServiceProvider",
-            '--tag' => "vue-components"
+            '--tag' => "vue-components",
+            '--force' => true,
         ]);
 
         $this->insertSparkMeterApi->registerSparkMeterManufacturer();
@@ -79,10 +80,12 @@ class InstallSparkMeterPackage extends Command
         $this->call('routes:generate');
 
         $menuItems = $this->menuItemService->createMenuItems();
-        $this->call('menu-items:generate', [
-            'menuItem' => $menuItems['menuItem'],
-            'subMenuItems' => $menuItems['subMenuItems'],
-        ]);
+        if(array_key_exists('menuItem',$menuItems)){
+            $this->call('menu-items:generate', [
+                'menuItem' => $menuItems['menuItem'],
+                'subMenuItems' => $menuItems['subMenuItems'],
+            ]);
+        }
 
         $this->call('sidebar:generate');
 
