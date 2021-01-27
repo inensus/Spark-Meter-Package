@@ -93,8 +93,8 @@ class SparkMeterServiceProvider extends ServiceProvider
         $timestamp = date('Y_m_d_His');
         return Collection::make($this->app->databasePath() . DIRECTORY_SEPARATOR . 'migrations' . DIRECTORY_SEPARATOR)
             ->flatMap(function ($path) use ($filesystem) {
-                return $filesystem->glob($path . '*_create_steama_tables.php');
-            })->push($this->app->databasePath() . "/migrations/{$timestamp}_create_steama_tables.php")
+                return $filesystem->glob($path . '*_create_spark_tables.php');
+            })->push($this->app->databasePath() . "/migrations/{$timestamp}_create_spark_tables.php")
             ->first();
     }
 }
