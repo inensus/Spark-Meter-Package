@@ -72,6 +72,7 @@ class CreateSparkTables extends Migration
             $table->string('transaction_id')->unique();
             $table->integer('external_id')->nullable();
             $table->string('status')->default('created');
+            $table->string('timestamp');
             $table->timestamps();
         });
     }

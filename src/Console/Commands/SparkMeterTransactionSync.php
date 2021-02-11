@@ -6,6 +6,7 @@ namespace Inensus\SparkMeter\Console\Commands;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Inensus\SparkMeter\Exceptions\CronJobException;
+use Inensus\SparkMeter\Exceptions\SparkAPIResponseException;
 use Inensus\SparkMeter\Services\TransactionService;
 
 class SparkMeterTransactionSync extends Command
@@ -26,14 +27,16 @@ class SparkMeterTransactionSync extends Command
 
         $timeStart = microtime(true);
         $this->info('#############################');
+        $this->info('# Spark Meter Package #');
         $startedAt=Carbon::now()->toIso8601ZuluString();
         $this->info('transactionSync command started at '.$startedAt);
 
         try {
              $this->sparkTransactionsService->sync();
              $this->info('transactionSync command is finished' );
-        } catch (CronJobException $e) {
-            $this->warn('transactionSync command is failed. message => ' . $e->getMessage());
+        }
+        catch (SparkAPIResponseException $e) {
+            $this->error('TransactionSync command is failed. message => ' . $e->getMessage());
         }
         $timeEnd = microtime(true);
         $totalTime=$timeEnd - $timeStart;
