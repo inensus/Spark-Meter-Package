@@ -27,6 +27,7 @@ use Inensus\SparkMeter\Models\SmCustomer;
 use Inensus\SparkMeter\Models\SmMeterModel;
 use Inensus\SparkMeter\Models\SmSite;
 use Inensus\SparkMeter\Models\SmTariff;
+use Inensus\SparkMeter\Models\SyncStatus;
 
 
 class CustomerService implements ISynchronizeService
@@ -130,7 +131,7 @@ class CustomerService implements ISynchronizeService
     public function getSmCustomers($request)
     {
         $perPage = $request->input('per_page') ?? 15;
-        return $this->smCustomer->newQuery()->with(['mpmPerson','site.mpmMiniGrid'])->paginate($perPage);
+        return $this->smCustomer->newQuery()->with(['mpmPerson', 'site.mpmMiniGrid'])->paginate($perPage);
     }
 
     public function getSmCustomersCount()
@@ -141,7 +142,10 @@ class CustomerService implements ISynchronizeService
 
     public function getSmCustomerByCustomerId($customerId)
     {
-        return $this->smCustomer->newQuery()->with(['mpmPerson.meters.meter','mpmPerson.addresses'])->where('customer_id',$customerId)->first();
+        return $this->smCustomer->newQuery()->with([
+            'mpmPerson.meters.meter',
+            'mpmPerson.addresses'
+        ])->where('customer_id', $customerId)->first();
     }
 
     public function updateSparkCustomerInfo($customerData, $siteId)
@@ -342,19 +346,19 @@ class CustomerService implements ISynchronizeService
                 'meter_serial' => $meterSerial,
             ];
             $sparkCustomersResult = $this->sparkMeterApiRequests->getByParams('/customers', $params, $siteId);
-            $phone=$sparkCustomersResult['phone_number']==null?'NA':$sparkCustomersResult['phone_number'];
-            return $this->modelHasher($sparkCustomersResult,$phone);
+            $phone = $sparkCustomersResult['phone_number'] == null ? 'NA' : $sparkCustomersResult['phone_number'];
+            return $this->modelHasher($sparkCustomersResult, $phone);
         } catch (SparkAPIResponseException $e) {
             throw new SparkAPIResponseException($e->getMessage());
         }
 
     }
 
-    public function updateCustomerLowBalanceLimit($customerId,$data)
+    public function updateCustomerLowBalanceLimit($customerId, $data)
     {
-        $customer= $this->smCustomer->newQuery()->find($customerId);
+        $customer = $this->smCustomer->newQuery()->find($customerId);
         $customer->update([
-            'low_balance_limit'=>$data['low_balance_limit']
+            'low_balance_limit' => $data['low_balance_limit']
         ]);
         return $customer->fresh();
     }
@@ -363,14 +367,14 @@ class CustomerService implements ISynchronizeService
     {
 
         if ($paginate === 1) {
-           return  $this->smCustomer->newQuery()->with(['mpmPerson','site.mpmMiniGrid'])
+            return $this->smCustomer->newQuery()->with(['mpmPerson', 'site.mpmMiniGrid'])
                 ->WhereHas('site.mpmMiniGrid', function ($q) use ($searchTerm) {
-                $q->where('name', 'LIKE', '%' . $searchTerm . '%');
-            })->orWhereHas('mpmPerson', function ($q) use ($searchTerm) {
+                    $q->where('name', 'LIKE', '%' . $searchTerm . '%');
+                })->orWhereHas('mpmPerson', function ($q) use ($searchTerm) {
                     $q->where('name', 'LIKE', '%' . $searchTerm . '%');
                 })->paginate(15);
         }
-        return   $this->smCustomer->newQuery()->with(['mpmPerson','site.mpmMiniGrid'])
+        return $this->smCustomer->newQuery()->with(['mpmPerson', 'site.mpmMiniGrid'])
             ->WhereHas('site.mpmMiniGrid', function ($q) use ($searchTerm) {
                 $q->where('name', 'LIKE', '%' . $searchTerm . '%');
             })->orWhereHas('mpmPerson', function ($q) use ($searchTerm) {
@@ -382,10 +386,14 @@ class CustomerService implements ISynchronizeService
     public function getLowBalancedCustomers()
     {
 
-        return $this->smCustomer->newQuery()->with(['mpmPerson.addresses'=>function($q) {return $q->where('is_primary',1);}])
+        return $this->smCustomer->newQuery()->with([
+            'mpmPerson.addresses' => function ($q) {
+                return $q->where('is_primary', 1);
+            }
+        ])
             ->whereNotNull('low_balance_limit')
-            ->where('low_balance_limit','>',0)
-            ->where('low_balance_limit','>','credit_balance')->get();
+            ->where('low_balance_limit', '>', 0)
+            ->where('low_balance_limit', '>', 'credit_balance')->get();
     }
 
 
@@ -393,61 +401,41 @@ class CustomerService implements ISynchronizeService
     {
         try {
             $syncCheck = $this->syncCheck(true);
+            $customersCollection = collect($syncCheck)->except('available_site_count');
+            $customersCollection->each(function ($customers) {
 
-            foreach ($syncCheck as $k=> $check) {
-                if ($k !== 'available_site_count') {
-                    if (!$check['result']) {
-                        $sparkCustomers = $check['site_data'];
-                        foreach ($sparkCustomers as $customer) {
-                            if (($customer['id']) && ($customer['meters'][0]['current_tariff_name'])) {
-                                $registeredSmCustomer = $this->smCustomer->newQuery()->where('customer_id',
-                                    $customer['id'])->first();
-                                $phone=$customer['phone_number']==null?'NA':$customer['phone_number'];
+                $customers['site_data']->filter(function ($customer) {
+                    return $customer['syncStatus'] === 3;
+                })->each(function ($customer) use ($customers) {
+                    $mpmCustomerId = $this->createRelatedPerson($customer, $customers['site_id']);
+                    $this->smCustomer->newQuery()->create([
+                        'customer_id' => $customer['id'],
+                        'mpm_customer_id' => $mpmCustomerId,
+                        'site_id' => $customers['site_id'],
+                        'credit_balance' => $customer['credit_balance'],
+                        'hash' => $customer['hash']
+                    ]);
 
+                });
+                $customers['site_data']->filter(function ($customer) {
+                    return $customer['syncStatus'] === 2;
+                })->each(function ($customer) use ($customers) {
+                    is_null($customer['relatedPerson']) ? $this->createRelatedPerson($customer,
+                        $customers['site_id']) : $this->updateRelatedPerson($customer, $customer['relatedPerson'],
+                        $customers['site_id']);
 
-                                $smModelHash = $this->modelHasher($customer,$phone);
+                    $customer['registeredSparkCustomer']->update([
+                        'hash' => $customer['hash'],
+                        'site_id' => $customers['site_id'],
+                        'credit_balance' => $customer['credit_balance'],
+                    ]);
+                });
+            });
 
-                                if ($registeredSmCustomer) {
-                                    $isHashChanged = $registeredSmCustomer->hash === $smModelHash ? false : true;
-
-                                    $relatedPerson = $this->person->newQuery()->where('id',
-                                        $registeredSmCustomer->mpm_customer_id)->first();
-                                    if (!$relatedPerson) {
-                                        $this->createRelatedPerson($customer, $check['site_id']);
-                                        $registeredSmCustomer->update([
-                                            'hash' => $smModelHash,
-                                            'site_id' => $check['site_id'],
-                                            'credit_balance' => $customer['credit_balance'],
-                                        ]);
-                                    } else {
-                                        if ($relatedPerson && $isHashChanged) {
-                                            $this->updateRelatedPerson($customer, $relatedPerson, $check['site_id']);
-                                            $registeredSmCustomer->update([
-                                                'hash' => $smModelHash,
-                                                'site_id' => $check['site_id'],
-                                                'credit_balance' => $customer['credit_balance'],
-                                            ]);
-                                        } else {
-                                            continue;
-                                        }
-                                    }
-                                } else {
-                                    $mpmCustomerId = $this->createRelatedPerson($customer, $check['site_id']);
-                                    $this->smCustomer->newQuery()->create([
-                                        'customer_id' => $customer['id'],
-                                        'mpm_customer_id' => $mpmCustomerId,
-                                        'site_id' => $check['site_id'],
-                                        'credit_balance' => $customer['credit_balance'],
-                                        'hash' => $smModelHash
-                                    ]);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            return $this->smCustomer->newQuery()->with(['mpmPerson','site.mpmMiniGrid'])->paginate(config('spark.paginate'));
+            return $this->smCustomer->newQuery()->with([
+                'mpmPerson',
+                'site.mpmMiniGrid'
+            ])->paginate(config('spark.paginate'));
 
         } catch (Exception $e) {
             throw  new Exception ($e->getMessage());
@@ -457,78 +445,69 @@ class CustomerService implements ISynchronizeService
 
     public function syncCheck($returnData = false)
     {
-        $returnArray = ['available_site_count'=>0];
-        try {
-
-            $sites = $this->smSite->newQuery()->where('is_authenticated', 1)->where('is_online', 1)->get();
-            foreach ($sites as $key => $site) {
-                $returnArray['available_site_count']= $key+1;
+        $returnArray = ['available_site_count' => 0];
+        $sites = $this->smSite->newQuery()->where('is_authenticated', 1)->where('is_online', 1)->get();
+        foreach ($sites as $key => $site) {
+            $returnArray['available_site_count'] = $key + 1;
+            try {
                 $sparkCustomers = $this->sparkMeterApiRequests->get('/customers', $site->site_id);
-                $sparkCustomersCount = 0;
-
-                foreach ($sparkCustomers['customers'] as $k => $customer) {
-                    if (($customer['id']) && ($customer['meters'][0]['current_tariff_name'])) {
-                        $sparkCustomersCount++;
-                    }
+            } catch (SparkAPIResponseException $e) {
+                Log::critical('Spark meter customers sync-check failed.', ['Error :' => $e->getMessage()]);
+                if ($returnData) {
+                    array_push($returnArray,
+                        ['result' => false]);
                 }
-                $smCustomers = $this->smCustomer->newQuery()->where('site_id', $site->site_id)->get();
-                $smCustomersCount = count($smCustomers);
+                throw  new Exception ($e->getMessage());
+            }
 
-                if ($sparkCustomersCount === $smCustomersCount) {
-                    foreach ($sparkCustomers['customers'] as $customer) {
-                        if (($customer['id']) && ($customer['meters'][0]['current_tariff_name'])) {
-                            $registeredSmCustomer = $this->smCustomer->newQuery()->where('customer_id',
-                                $customer['id'])->first();
-                            if ($registeredSmCustomer) {
-                                $phone=$customer['phone_number']==null?'NA':$customer['phone_number'];
-                                $modelHash =$this->modelHasher($customer,$phone);
-                                $smHash = $registeredSmCustomer->hash;
-                                if ($modelHash !== $smHash) {
-                                    break;
-                                }
-                                $sparkCustomersCount--;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                    if ($sparkCustomersCount === 0) {
+            $sparkCustomersCollection = collect($sparkCustomers['customers'])->filter(function ($customer) {
+                return $customer['id'] && $customer['meters'][0]['current_tariff_name'];
+            });
+            $sparkCustomers = $this->smCustomer->newQuery()->where('site_id', $site->site_id)->get();
+            $people = $this->person->newQuery()->get();
 
-                        $returnData ? array_push($returnArray, [
-                            'site_id' => $site->site_id,
-                            'site_data' => $sparkCustomers['customers'],
-                            'result' => true
-                        ]) : array_push($returnArray, ['result' => true]);
-                    } else {
-                        $returnData ? array_push($returnArray,
-                            [
-                                'site_id' => $site->site_id,
-                                'site_data' => $sparkCustomers['customers'],
-                                'result' => false
-                            ]) : array_push($returnArray,
-                            ['result' => false]);
-                    }
-                }else{
-                    $returnData ? array_push($returnArray, [
-                        'site_id' => $site->site_id,
-                        'site_data' => $sparkCustomers['customers'],
-                        'result' => false
-                    ]) : array_push($returnArray, ['result' => false]);
+            $sparkCustomersCollection->transform(function ($customer) use ($sparkCustomers, $people) {
+
+                $registeredSparkCustomer = $sparkCustomers->firstWhere('customer_id', $customer['id']);
+                $relatedPerson = null;
+                $phone = $customer['phone_number'] == null ? 'NA' : $customer['phone_number'];
+                $customerHash = $this->modelHasher($customer, $phone);
+                if ($registeredSparkCustomer) {
+                    $customer['syncStatus'] = $customerHash === $registeredSparkCustomer->hash ? SyncStatus::Synced : SyncStatus::Modified;
+                    $relatedPerson = $people->find($registeredSparkCustomer->mpm_customer_id);
+                } else {
+                    $customer['syncStatus'] = SyncStatus::NotRegisteredYet;
                 }
+                $customer['hash'] = $customerHash;
+                $customer['relatedPerson'] = $relatedPerson;
+                $customer['registeredSparkCustomer'] = $registeredSparkCustomer;
+                return $customer;
+            });
+            $customerSyncStatus = $sparkCustomersCollection->whereNotIn('syncStatus', 1)->count();
+
+            if ($customerSyncStatus) {
+
+                $returnData ? array_push($returnArray, [
+                    'site_id' => $site->site_id,
+                    'site_data' => $sparkCustomersCollection,
+                    'result' => false
+                ]) : array_push($returnArray, ['result' => false]);
+
+            } else {
+                $returnData ? array_push($returnArray, [
+                    'site_id' => $site->site_id,
+                    'site_data' => $sparkCustomersCollection,
+                    'result' => true
+                ]) : array_push($returnArray, ['result' => true]);
             }
-            return $returnArray;
-        } catch (Exception $e) {
-            Log::critical('Spark meter customers sync-check failed.', ['Error :' => $e->getMessage()]);
-            if ($returnData) {
-                array_push($returnArray,
-                    ['result' => false]);
-                return $returnArray;
-            }
-            throw  new Exception ($e->getMessage());
+
+
         }
+        return $returnArray;
+
     }
 
-    public function modelHasher($model,...$params): string
+    public function modelHasher($model, ...$params): string
     {
 
         return $this->smTableEncryption->makeHash([
@@ -544,46 +523,41 @@ class CustomerService implements ISynchronizeService
     {
         try {
             $sparkCustomers = $this->sparkMeterApiRequests->get('/customers', $siteId);
-            $sparkCustomersCount = 0;
-
-            foreach ($sparkCustomers['customers'] as $k => $customer) {
-                if (($customer['id']) && ($customer['meters'][0]['current_tariff_name'])) {
-                    $sparkCustomersCount++;
-                }
-            }
-            $smCustomers = $this->smCustomer->newQuery()->where('site_id', $siteId)->get();
-            $smCustomersCount = count($smCustomers);
-
-            if ($sparkCustomersCount === $smCustomersCount) {
-                foreach ($sparkCustomers['customers'] as $customer) {
-                    if (($customer['id']) && ($customer['meters'][0]['current_tariff_name'])) {
-                        $registeredSmCustomer = $this->smCustomer->newQuery()->where('customer_id',
-                            $customer['id'])->first();
-                        if ($registeredSmCustomer) {
-                            $phone=$customer['phone_number']==null?'NA':$customer['phone_number'];
-                            $modelHash =$this->modelHasher($customer,$phone);
-                            $smHash = $registeredSmCustomer->hash;
-                            if ($modelHash !== $smHash) {
-                                break;
-                            }
-                            $sparkCustomersCount--;
-                        } else {
-                            break;
-                        }
-                    }
-                }
-                if ($sparkCustomersCount === 0) {
-                    return  ['result' => true,'message' => 'Records are updated'];
-                } else {
-                    return  ['result' => false,'message'=>'customers are not updated for site '.$siteId];
-                }
-            }else{
-                return  ['result' => false,'message'=>'customers are not updated for site '.$siteId];
-            }
-        }catch (Exception $e) {
+        } catch (SparkAPIResponseException $e) {
             Log::critical('Spark meter customers sync-check-by-site failed.', ['Error :' => $e->getMessage()]);
 
-            throw  new Exception ($e->getMessage());
+            throw  new SparkAPIResponseException ($e->getMessage());
         }
+
+        $sparkCustomersCollection = collect($sparkCustomers['customers'])->filter(function ($customer) {
+            return $customer['id'] && $customer['meters'][0]['current_tariff_name'];
+        });
+
+        $sparkCustomers = $this->smCustomer->newQuery()->where('site_id', $siteId)->get();
+        $people = $this->person->newQuery()->get();
+
+        $sparkCustomersCollection->transform(function ($customer) use ($sparkCustomers, $people) {
+            $registeredSparkCustomer = $sparkCustomers->firstWhere('customer_id', $customer['id']);
+            $relatedPerson = null;
+            $phone = $customer['phone_number'] == null ? 'NA' : $customer['phone_number'];
+            $customerHash = $this->modelHasher($customer, $phone);
+            if ($registeredSparkCustomer) {
+                $customer['syncStatus'] = $customerHash === $registeredSparkCustomer->hash ? SyncStatus::Synced : SyncStatus::Modified;
+                $relatedPerson = $people->find($registeredSparkCustomer->mpm_customer_id);
+            } else {
+                $customer['syncStatus'] = SyncStatus::NotRegisteredYet;
+            }
+            $customer['hash'] = $customerHash;
+            $customer['relatedPerson'] = $relatedPerson;
+            $customer['registeredSparkCustomer'] = $registeredSparkCustomer;
+            return $customer;
+        });
+        $customerSyncStatus = $sparkCustomersCollection->whereNotIn('syncStatus', 1)->count();
+        if ($customerSyncStatus) {
+            return ['result' => false, 'message' => 'customers are not updated for site ' . $siteId];
+        } else {
+            return ['result' => true, 'message' => 'Records are updated'];
+        }
+
     }
 }

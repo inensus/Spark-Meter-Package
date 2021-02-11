@@ -9,11 +9,13 @@ use App\Models\TimeOfUsage;
 
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Inensus\SparkMeter\Exceptions\SparkAPIResponseException;
 use Inensus\SparkMeter\Helpers\SmTableEncryption;
 use Inensus\SparkMeter\Http\Requests\SparkMeterApiRequests;
 use Inensus\SparkMeter\Models\SmMeterModel;
 use Inensus\SparkMeter\Models\SmSite;
 use Inensus\SparkMeter\Models\SmTariff;
+use Inensus\SparkMeter\Models\SyncStatus;
 
 class TariffService implements ISynchronizeService
 {
@@ -68,7 +70,7 @@ class TariffService implements ISynchronizeService
             if ($value['name'] === $tariff->name) {
                 $tariffExists = true;
 
-                $modelHash = $this->modelHasher($value,null);
+                $modelHash = $this->modelHasher($value, null);
                 $this->smTariff->newQuery()->create([
                     'tariff_id' => $value['id'],
                     'mpm_tariff_id' => $tariff->id,
@@ -280,7 +282,7 @@ class TariffService implements ISynchronizeService
     {
         $tariff = $this->getSparkTariffInfo($smTariff->tariff_id);
 
-        $modelHash = $this->modelHasher($tariff,null);
+        $modelHash = $this->modelHasher($tariff, null);
         $isHashChanged = $smTariff->hash === $modelHash ? false : true;
         $relatedTariff = $this->meterTariff->newQuery()->where('id',
             $smTariff->mpm_tariff_id)->first();
@@ -304,78 +306,45 @@ class TariffService implements ISynchronizeService
     {
         try {
             $syncCheck = $this->syncCheck(true);
+            $tariffsCollection = collect($syncCheck)->except('available_site_count');
+            $tariffsCollection->each(function ($tariffs){
+                $tariffs['site_data']->filter(function ($tariff) {
+                    return $tariff['syncStatus'] === 3;
+                })->each(function ($tariff) use ($tariffs) {
+                    $meterTariff = $this->createRelatedTariff($tariff);
+                    $maxValue = $this->smMeterModel->newQuery()->max('continuous_limit');
+                    $this->smTariff->newQuery()->create([
+                        'tariff_id' => $tariff['id'],
+                        'mpm_tariff_id' => $meterTariff->id,
+                        'flat_load_limit' => array_key_exists("flat_load_limit",
+                            $tariff) ? $tariff['flat_load_limit'] : $maxValue,
+                        'plan_duration' => array_key_exists("plan_duration",
+                            $tariff) ? $tariff['plan_duration'] : null,
+                        'plan_price' => array_key_exists("plan_price",
+                            $tariff) ? $tariff['plan_price'] : 0,
+                        'site_id' => $tariffs['site_id'],
+                        'hash' => $tariff['hash']
+                    ]);
+                    $tariffs['site_data']->filter(function ($tariff) {
+                        return $tariff['syncStatus'] === 2;
+                    })->each(function ($tariff) use ($tariffs) {
+                        is_null($tariff['relatedTariff']) ? $this->createRelatedTariff($tariff) : $this->updateRelatedTariff($tariff,
+                            $tariff['relatedTariff']);
 
-            foreach ($syncCheck as $k => $check) {
-                if ($k !== 'available_site_count') {
-                    if (!$check['result']) {
-                        $tariffs = $check['site_data'];
+                        $tariff['registeredSparkTariff']->update([
+                            'flat_load_limit' => array_key_exists("flat_load_limit",
+                                $tariff) ? $tariff['flat_load_limit'] :$tariff['registeredSparkTariff']['flat_load_limit'],
+                            'plan_duration' => array_key_exists("plan_duration",
+                                $tariff) ? $tariff['plan_duration'] : $tariff['registeredSparkTariff']['plan_duration'],
+                            'plan_price' => array_key_exists("plan_price",
+                                $tariff) ? $tariff['plan_price'] : $tariff['registeredSparkTariff']['plan_price'],
+                            'site_id' => $tariffs['site_id'],
+                            'hash' => $tariff['hash']
+                        ]);
+                    });
+                });
 
-                        foreach ($tariffs as $tariff) {
-                            if ($tariff['tariff_type'] == 'flat') {
-                                $registeredSmTariff = $this->smTariff->newQuery()->where('tariff_id',
-                                    $tariff['id'])->first();
-                                $modelHash =  $this->modelHasher($tariff,null);
-                                if ($registeredSmTariff) {
-                                    $isHashChanged = $registeredSmTariff->hash === $modelHash ? false : true;
-                                    $relatedTariff = $this->meterTariff->newQuery()->where('id',
-                                        $registeredSmTariff->mpm_tariff_id)->first();
-                                    if (!$relatedTariff) {
-                                        $this->createRelatedTariff($tariff);
-                                        $registeredSmTariff->update([
-                                            'flat_load_limit' => array_key_exists("flat_load_limit",
-                                                $tariff) ? $tariff['flat_load_limit'] : $registeredSmTariff->flat_load_limit,
-                                            'plan_duration' => array_key_exists("plan_duration",
-                                                $tariff) ? $tariff['plan_duration'] : $registeredSmTariff->plan_duration,
-                                            'plan_price' => array_key_exists("plan_price",
-                                                $tariff) ? $tariff['plan_price'] : $registeredSmTariff->plan_price,
-                                            'site_id' => $check['site_id'],
-                                            'hash' => $modelHash,
-                                        ]);
-                                    } else {
-                                        if ($relatedTariff && $isHashChanged) {
-                                            $this->updateRelatedTariff($tariff, $relatedTariff);
-                                            $registeredSmTariff->update([
-                                                'flat_load_limit' => array_key_exists("flat_load_limit",
-                                                    $tariff) ? $tariff['flat_load_limit'] : $registeredSmTariff->flat_load_limit,
-                                                'plan_duration' => array_key_exists("plan_duration",
-                                                    $tariff) ? $tariff['plan_duration'] : $registeredSmTariff->plan_duration,
-                                                'plan_price' => array_key_exists("plan_price",
-                                                    $tariff) ? $tariff['plan_price'] : $registeredSmTariff->plan_price,
-                                                'site_id' => $check['site_id'],
-                                                'hash' => $modelHash,
-                                            ]);
-                                        } else {
-                                            continue;
-                                        }
-                                    }
-                                } else {
-                                    $meterTariff = $this->createRelatedTariff($tariff);
-                                    if (!$meterTariff) {
-                                        continue;
-                                    }
-                                    $maxValue = $this->smMeterModel->newQuery()->max('continuous_limit');
-                                    $this->smTariff->newQuery()->create([
-                                        'tariff_id' => $tariff['id'],
-                                        'mpm_tariff_id' => $meterTariff->id,
-                                        'flat_load_limit' => array_key_exists("flat_load_limit",
-                                            $tariff) ? $tariff['flat_load_limit'] : $maxValue,
-                                        'plan_duration' => array_key_exists("plan_duration",
-                                            $tariff) ? $tariff['plan_duration'] : null,
-                                        'plan_price' => array_key_exists("plan_price",
-                                            $tariff) ? $tariff['plan_price'] : 0,
-                                        'site_id' => $check['site_id'],
-                                        'hash' => $modelHash
-                                    ]);
-                                }
-
-                            }
-                        }
-
-                    }
-
-                }
-            }
-
+            });
             return $this->smTariff->newQuery()->with([
                 'mpmTariff',
                 'site.mpmMiniGrid'
@@ -389,73 +358,64 @@ class TariffService implements ISynchronizeService
     public function syncCheck($returnData = false)
     {
         $returnArray = ['available_site_count' => 0];
-        try {
-            $sites = $this->smSite->newQuery()->where('is_authenticated', 1)->where('is_online', 1)->get();
-            foreach ($sites as $key => $site) {
-                $returnArray['available_site_count'] = $key + 1;
+
+        $sites = $this->smSite->newQuery()->where('is_authenticated', 1)->where('is_online', 1)->get();
+        foreach ($sites as $key => $site) {
+            $returnArray['available_site_count'] = $key + 1;
+            try {
                 $tariffs = $this->sparkMeterApiRequests->get($this->rootUrl, $site->site_id);
-                $sparkTariffsCount = 0;
-                foreach ($tariffs['tariffs'] as $model) {
-                    if ($model['tariff_type'] == 'flat') {
-                        $sparkTariffsCount++;
-                    }
+            } catch (SparkAPIResponseException $e) {
+                Log::critical('Spark meter tariffs sync-check failed.', ['Error :' => $e->getMessage()]);
+                if ($returnData) {
+                    array_push($returnArray,
+                        ['result' => false]);
                 }
-                $smTariffs = $this->smTariff->newQuery()->where('site_id', $site->site_id)->get();
-                $smTariffsCount = count($smTariffs);
-                if ($sparkTariffsCount === $smTariffsCount) {
-                    foreach ($tariffs['tariffs'] as $tariff) {
+                throw  new SparkAPIResponseException ($e->getMessage());
+            }
+            $sparkTariffsCollection = collect($tariffs['tariffs'])->filter(function ($tariff) {
+                return $tariff['tariff_type'] == 'flat';
+            });
+            $sparkTariffs = $this->smTariff->newQuery()->where('site_id', $site->site_id)->get();
+            $tariffs = $this->smTariff->newQuery()->get();
+            $sparkTariffsCollection->transform(function ($tariff) use ($sparkTariffs, $tariffs) {
 
-                        if ($tariff['tariff_type'] == 'flat') {
-
-                            $registeredSmTariff = $this->smTariff->newQuery()->where('tariff_id',
-                                $tariff['id'])->first();
-                            if ($registeredSmTariff) {
-                                $modelHash = $this->modelHasher($tariff,null);
-                                $smHash = $registeredSmTariff->hash;
-                                if ($modelHash !== $smHash) {
-                                    break;
-                                }
-                                $sparkTariffsCount--;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                    if ($sparkTariffsCount === 0) {
-                        $returnData ? array_push($returnArray, [
-                            'site_id' => $site->site_id,
-                            'site_data' => $tariffs['tariffs'],
-                            'result' => true
-                        ]) : array_push($returnArray, ['result' => true]);
-                    } else {
-                        $returnData ? array_push($returnArray, [
-                            'site_id' => $site->site_id,
-                            'site_data' => $tariffs['tariffs'],
-                            'result' => false
-                        ]) : array_push($returnArray, ['result' => false]);
-                    }
-
+                $registeredSparkTariff = $sparkTariffs->firstWhere('tariff_id', $tariff['id']);
+                $relatedTariff = null;
+                $tariffHash = $this->modelHasher($tariff, null);
+                if ($registeredSparkTariff) {
+                    $tariff['syncStatus'] = $tariffHash === $registeredSparkTariff->hash ? SyncStatus::Synced : SyncStatus::Modified;
+                    $relatedTariff = $tariffs->find($registeredSparkTariff->mpm_tariff_id);
                 } else {
-                    $returnData ? array_push($returnArray, [
-                        'site_id' => $site->site_id,
-                        'site_data' => $tariffs['tariffs'],
-                        'result' => false
-                    ]) : array_push($returnArray, ['result' => false]);
+                    $tariff['syncStatus'] = SyncStatus::NotRegisteredYet;
                 }
+                $tariff['hash'] = $tariffHash;
+                $tariff['relatedTariff'] = $relatedTariff;
+                $tariff['registeredSparkTariff'] = $registeredSparkTariff;
+                return $tariff;
+            });
+            $tariffSyncStatus = $sparkTariffsCollection->whereNotIn('syncStatus', 1)->count();
+
+            if ($tariffSyncStatus) {
+
+                $returnData ? array_push($returnArray, [
+                    'site_id' => $site->site_id,
+                    'site_data' => $sparkTariffsCollection,
+                    'result' => false
+                ]) : array_push($returnArray, ['result' => false]);
+
+            } else {
+                $returnData ? array_push($returnArray, [
+                    'site_id' => $site->site_id,
+                    'site_data' => $sparkTariffsCollection,
+                    'result' => true
+                ]) : array_push($returnArray, ['result' => true]);
             }
-            return $returnArray;
-        } catch (Exception $e) {
-            Log::critical('Spark meter tariffs sync-check failed.', ['Error :' => $e->getMessage()]);
-            if ($returnData) {
-                array_push($returnArray,
-                    ['result' => false]);
-                return $returnArray;
-            }
-            throw  new Exception ($e->getMessage());
         }
+        return $returnArray;
+
     }
 
-    public function modelHasher($model,...$params): string
+    public function modelHasher($model, ...$params): string
     {
         $modelTouString = '';
         foreach ($model['tous'] as $item) {
@@ -472,47 +432,38 @@ class TariffService implements ISynchronizeService
     {
         try {
             $tariffs = $this->sparkMeterApiRequests->get($this->rootUrl, $siteId);
-            $sparkTariffsCount = 0;
-            foreach ($tariffs['tariffs'] as $model) {
-                if ($model['tariff_type'] == 'flat') {
-                    $sparkTariffsCount++;
-                }
-            }
-            $smTariffs = $this->smTariff->newQuery()->where('site_id', $siteId)->get();
-            $smTariffsCount = count($smTariffs);
-            if ($sparkTariffsCount === $smTariffsCount) {
-                foreach ($tariffs['tariffs'] as $tariff) {
-
-                    if ($tariff['tariff_type'] == 'flat') {
-
-                        $registeredSmTariff = $this->smTariff->newQuery()->where('tariff_id',
-                            $tariff['id'])->first();
-                        if ($registeredSmTariff) {
-                            $modelHash = $this->modelHasher($tariff,null);
-                            $smHash = $registeredSmTariff->hash;
-                            if ($modelHash !== $smHash) {
-                                break;
-                            }
-                            $sparkTariffsCount--;
-                        } else {
-                            break;
-                        }
-                    }
-                }
-                if ($sparkTariffsCount === 0) {
-                    return  ['result' => true,'message' => 'Records are updated'];
-                } else {
-                    return  ['result' => false,'message'=>'tariffs are not updated for site '.$siteId];
-                }
-
-            } else {
-                return  ['result' => false,'message'=>'tariffs are not updated for site '.$siteId];
-            }
-        } catch (Exception $e) {
-
+        } catch (SparkAPIResponseException $e) {
             Log::critical('Spark meter tariffs sync-check-by-site failed.', ['Error :' => $e->getMessage()]);
-            throw  new Exception ($e->getMessage());
+            throw  new SparkAPIResponseException ($e->getMessage());
         }
 
+            $sparkTariffsCollection = collect($tariffs['tariffs'])->filter(function ($tariff) {
+                return $tariff['tariff_type'] == 'flat';
+            });
+            $sparkTariffs = $this->smTariff->newQuery()->where('site_id', $siteId)->get();
+            $tariffs = $this->smTariff->newQuery()->get();
+            $sparkTariffsCollection->transform(function ($tariff) use ($sparkTariffs, $tariffs) {
+
+            $registeredSparkTariff = $sparkTariffs->firstWhere('tariff_id', $tariff['id']);
+            $relatedTariff = null;
+            $tariffHash = $this->modelHasher($tariff, null);
+            if ($registeredSparkTariff) {
+                $tariff['syncStatus'] = $tariffHash === $registeredSparkTariff->hash ? SyncStatus::Synced : SyncStatus::Modified;
+                $relatedTariff = $tariffs->find($registeredSparkTariff->mpm_tariff_id);
+            } else {
+                $tariff['syncStatus'] = SyncStatus::NotRegisteredYet;
+            }
+            $tariff['hash'] = $tariffHash;
+            $tariff['relatedTariff'] = $relatedTariff;
+            $tariff['registeredSparkTariff'] = $registeredSparkTariff;
+            return $tariff;
+        });
+            $tariffSyncStatus = $sparkTariffsCollection->whereNotIn('syncStatus', 1)->count();
+
+        if ($tariffSyncStatus) {
+            return ['result' => false, 'message' => 'tariffs are not updated for site ' . $siteId];
+        } else {
+            return ['result' => true, 'message' => 'Records are updated'];
+        }
     }
 }

@@ -5,10 +5,12 @@ namespace Inensus\SparkMeter\Services;
 use App\Models\Meter\MeterType;
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Inensus\SparkMeter\Exceptions\SparkAPIResponseException;
 use Inensus\SparkMeter\Helpers\SmTableEncryption;
 use Inensus\SparkMeter\Http\Requests\SparkMeterApiRequests;
 use Inensus\SparkMeter\Models\SmMeterModel;
 use Inensus\SparkMeter\Models\SmSite;
+use Inensus\SparkMeter\Models\SyncStatus;
 
 class MeterModelService implements ISynchronizeService
 {
@@ -52,70 +54,49 @@ class MeterModelService implements ISynchronizeService
         try {
             $syncCheck = $this->syncCheck(true);
 
-            foreach ($syncCheck as $k => $check) {
-                if ($k !== 'available_site_count') {
-                    if (!$check['result']) {
-                        $models = $check['site_data'];
-                        foreach ($models as $key => $model) {
-                            $registeredSmMeterModel = $this->smMeterModel->newQuery()->where('model_name',
-                                $model['name'])->first();
-                                $smModelHash = $this->modelHasher($model,null);
-                            if ($registeredSmMeterModel) {
-                                $isHashChanged = $registeredSmMeterModel->hash === $smModelHash ? false : true;
+            $meterModelsCollection = collect($syncCheck)->except('available_site_count');
 
-                                $relatedMeterType = $this->meterType->newQuery()->where('id',
-                                    $registeredSmMeterModel->mpm_meter_type_id)->first();
-                                if (!$relatedMeterType) {
-                                    $this->meterType->newQuery()->create([
-                                        'online' => 1,
-                                        'phase' => $model['phase_count'],
-                                        'max_current' => $model['continuous_limit'],
-                                    ]);
-                                    $registeredSmMeterModel->update([
-                                        'model_name' => $model['name'],
-                                        'continuous_limit' => $model['continuous_limit'],
-                                        'inrush_limit' => $model['inrush_limit'],
-                                        'site_id' => $check['site_id'],
-                                        'hash' => $smModelHash,
-                                    ]);
-                                } else {
-                                    if ($relatedMeterType && $isHashChanged) {
-                                        $relatedMeterType->update([
-                                            'phase' => $model['phase_count'],
-                                            'max_current' => $model['continuous_limit'],
-                                        ]);
-                                        $registeredSmMeterModel->update([
-                                            'model_name' => $model['name'],
-                                            'continuous_limit' => $model['continuous_limit'],
-                                            'inrush_limit' => $model['inrush_limit'],
-                                            'site_id' => $check['site_id'],
-                                            'hash' => $smModelHash,
-                                        ]);
-                                    } else {
-                                        continue;
-                                    }
-                                }
-                            } else {
-                                $meterType = $this->meterType->newQuery()->create([
-                                    'online' => 1,
-                                    'phase' => $model['phase_count'],
-                                    'max_current' => $model['continuous_limit']
-                                ]);
-                                $this->smMeterModel->newQuery()->create([
-                                    'model_name' => $model['name'],
-                                    'mpm_meter_type_id' => $meterType->id,
-                                    'continuous_limit' => $model['continuous_limit'],
-                                    'inrush_limit' => $model['inrush_limit'],
-                                    'site_id' => $check['site_id'],
-                                    'hash' => $smModelHash
-                                ]);
-                            }
-                        }
-                    }
-                }
-            }
 
-            return $this->smMeterModel->newQuery()->with(['meterType','site.mpmMiniGrid'])->paginate(config('paginate.paginate'));
+            $meterModelsCollection->each(function ($meterModels) {
+
+
+                $meterModels['site_data']->filter(function ($meterModel) {
+                    return $meterModel['syncStatus'] === 3;
+                })->each(function ($meterModel) use ($meterModels) {
+                    $meterType = $this->meterType->newQuery()->create([
+                        'online' => 1,
+                        'phase' => $meterModel['phase_count'],
+                        'max_current' => $meterModel['continuous_limit']
+                    ]);
+                    $this->smMeterModel->newQuery()->create([
+                        'model_name' => $meterModel['name'],
+                        'mpm_meter_type_id' => $meterType->id,
+                        'continuous_limit' => $meterModel['continuous_limit'],
+                        'inrush_limit' => $meterModel['inrush_limit'],
+                        'site_id' => $meterModels['site_id'],
+                        'hash' => $meterModel['hash']
+                    ]);
+                });
+
+
+                $meterModels['site_data']->filter(function ($meterModel) {
+                    return $meterModel['syncStatus'] === 2;
+                })->each(function ($meterModel) use ($meterModels) {
+                    is_null($meterModel['relatedMeterType']) ? $this->createRelatedMeterModel($meterModel) : $this->updateRelatedMeterModel($meterModel,
+                        $meterModel['relatedMeterType']);
+                    $meterModel['registeredSparkMeterModel']->update([
+                        'model_name' => $meterModel['name'],
+                        'continuous_limit' => $meterModel['continuous_limit'],
+                        'inrush_limit' => $meterModel['inrush_limit'],
+                        'site_id' => $meterModels['site_id'],
+                        'hash' => $meterModel['hash']
+                    ]);
+                });
+            });
+            return $this->smMeterModel->newQuery()->with([
+                'meterType',
+                'site.mpmMiniGrid'
+            ])->paginate(config('paginate.paginate'));
 
         } catch (Exception $e) {
             Log::critical('Spark meter models sync failed.', ['Error :' => $e->getMessage()]);
@@ -126,74 +107,69 @@ class MeterModelService implements ISynchronizeService
     public function syncCheck($returnData = false)
     {
         $returnArray = ['available_site_count' => 0];
-
-        try {
-            $sites = $this->smSite->newQuery()->where('is_authenticated', 1)->where('is_online', 1)->get();
-
-            foreach ($sites as $key => $site) {
-
-                $returnArray['available_site_count'] = $key + 1;
-                $url = $this->rootUrl . '/models';
+        $sites = $this->smSite->newQuery()->where('is_authenticated', 1)->where('is_online', 1)->get();
+        foreach ($sites as $key => $site) {
+            $returnArray['available_site_count'] = $key + 1;
+            $url = $this->rootUrl . '/models';
+            try {
                 $sparkMeterModels = $this->sparkMeterApiRequests->get($url, $site->site_id);
-                $sparkMeterModelsCount = count($sparkMeterModels['models']);
-                $smMeterModels = $this->smMeterModel->newQuery()->where('site_id', $site->site_id)->get();
-                $smMeterModelsCount = count($smMeterModels);
 
-                if ($sparkMeterModelsCount === $smMeterModelsCount) {
-                    foreach ($sparkMeterModels['models'] as $model) {
-                        $registeredSmMeterModel = $this->smMeterModel->newQuery()->where('model_name',
-                            $model['name'])->first();
-                        if ($registeredSmMeterModel) {
-                            $modelHash = $this->modelHasher($model,null);
-                            $smHash = $registeredSmMeterModel->hash;
-                            if ($modelHash !== $smHash) {
-
-                                break;
-                            } else {
-                                $sparkMeterModelsCount--;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                    if ($sparkMeterModelsCount === 0) {
-                        $returnData ? array_push($returnArray, [
-                            'site_id' => $site->site_id,
-                            'site_data' => $sparkMeterModels['models'],
-                            'result' => true
-                        ]) : array_push($returnArray, ['result' => true]);
-
-                    }
-                    else {
-
-                        $returnData ? array_push($returnArray, [
-                            'site_id' => $site->site_id,
-                            'site_data' => $sparkMeterModels['models'],
-                            'result' => false
-                        ]) : array_push($returnArray, ['result' => false]);
-                    }
-                }else{
-                    $returnData ? array_push($returnArray, [
-                        'site_id' => $site->site_id,
-                        'site_data' => $sparkMeterModels['models'],
-                        'result' => false
-                    ]) : array_push($returnArray, ['result' => false]);
+            } catch (SparkAPIResponseException $e) {
+                Log::critical('Spark meter meter-models sync-check failed.', ['Error :' => $e->getMessage()]);
+                if ($returnData) {
+                    array_push($returnArray,
+                        ['result' => false]);
                 }
+                throw  new SparkAPIResponseException($e->getMessage());
             }
-            return $returnArray;
-        } catch (Exception $e) {
+            $sparkMeterModelsCollection = collect($sparkMeterModels['models']);
 
-            Log::critical('Spark meter meter-models sync-check failed.', ['Error :' => $e->getMessage()]);
-            if ($returnData) {
-                array_push($returnArray,
-                    ['result' => false]);
-                return $returnArray;
+            $meterModels = $this->smMeterModel->newQuery()->where('site_id', $site->site_id)->get();
+            $meterTypes = $this->meterType->newQuery()->get();
+
+            $sparkMeterModelsCollection->transform(function ($meterModel) use ($meterModels, $meterTypes) {
+
+                $registeredSparkMeterModel = $meterModels->firstWhere('model_name', $meterModel['name']);
+                $relatedMeterType = null;
+                $meterModelHash = $this->modelHasher($meterModel, null);
+                if ($registeredSparkMeterModel) {
+                    $meterModel['syncStatus'] = $meterModelHash === $registeredSparkMeterModel->hash ? SyncStatus::Synced : SyncStatus::Modified;
+                    $relatedMeterType = $meterTypes->find($registeredSparkMeterModel->mpm_meter_type_id);
+                } else {
+                    $meterModel['syncStatus'] = SyncStatus::NotRegisteredYet;
+                }
+                $meterModel['hash'] = $meterModelHash;
+                $meterModel['relatedMeterType'] = $relatedMeterType;
+                $meterModel['registeredSparkMeterModel'] = $registeredSparkMeterModel;
+                return $meterModel;
+            });
+
+            $meterModelSyncStatus = $sparkMeterModelsCollection->whereNotIn('syncStatus', 1)->count();
+
+            if ($meterModelSyncStatus) {
+
+                $returnData ? array_push($returnArray, [
+                    'site_id' => $site->site_id,
+                    'site_data' => $sparkMeterModelsCollection,
+                    'result' => false
+                ]) : array_push($returnArray, ['result' => false]);
+
+            } else {
+                $returnData ? array_push($returnArray, [
+                    'site_id' => $site->site_id,
+                    'site_data' => $sparkMeterModelsCollection,
+                    'result' => true
+                ]) : array_push($returnArray, ['result' => true]);
             }
-            throw  new Exception ($e->getMessage());
+
         }
+
+        return $returnArray;
+
+
     }
 
-    public function modelHasher($model,...$params): string
+    public function modelHasher($model, ...$params): string
     {
         return $smModelHash = $this->smTableEncryption->makeHash([
             $model['name'],
@@ -206,42 +182,61 @@ class MeterModelService implements ISynchronizeService
     public function syncCheckBySite($siteId)
     {
         try {
-                $url = $this->rootUrl . '/models';
-                $sparkMeterModels = $this->sparkMeterApiRequests->get($url, $siteId);
-                $sparkMeterModelsCount = count($sparkMeterModels['models']);
-                $smMeterModels = $this->smMeterModel->newQuery()->where('site_id',$siteId)->get();
-                $smMeterModelsCount = count($smMeterModels);
-                if ($sparkMeterModelsCount === $smMeterModelsCount) {
-                    foreach ($sparkMeterModels['models'] as $model) {
-                        $registeredSmMeterModel = $this->smMeterModel->newQuery()->where('model_name',
-                            $model['name'])->first();
-                        if ($registeredSmMeterModel) {
-                            $modelHash = $this->modelHasher($model,null);
-                            $smHash = $registeredSmMeterModel->hash;
-                            if ($modelHash !== $smHash) {
-
-                                break;
-                            } else {
-                                $sparkMeterModelsCount--;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                    if ($sparkMeterModelsCount === 0) {
-                        return  ['result' => true,'message' => 'Records are updated'];
-                    }
-                    else {
-                        return  ['result' => false,'message'=>'meter models are not updated for site '.$siteId];
-                    }
-                }else{
-                    return  ['result' => false,'message'=>'meter models are not updated for site '.$siteId];
-                }
-
-        } catch (Exception $e) {
+            $url = $this->rootUrl . '/models';
+            $sparkMeterModels = $this->sparkMeterApiRequests->get($url, $siteId);
+        } catch (SparkAPIResponseException $e) {
 
             Log::critical('Spark meter meter-models sync-check-by-site failed.', ['Error :' => $e->getMessage()]);
-            throw  new Exception ($e->getMessage());
+            throw  new SparkAPIResponseException ($e->getMessage());
         }
+        $sparkMeterModelsCollection = collect($sparkMeterModels['models']);
+
+        $meterModels = $this->smMeterModel->newQuery()->where('site_id', $siteId)->get();
+        $meterTypes = $this->meterType->newQuery()->get();
+
+        $sparkMeterModelsCollection->transform(function ($meterModel) use ($meterModels, $meterTypes) {
+
+            $registeredSparkMeterModel = $meterModels->firstWhere('model_name', $meterModel['name']);
+            $relatedMeterType = null;
+            $meterModelHash = $this->modelHasher($meterModel, null);
+            if ($registeredSparkMeterModel) {
+                $meterModel['syncStatus'] = $meterModelHash === $registeredSparkMeterModel->hash ? SyncStatus::Synced : SyncStatus::Modified;
+                $relatedMeterType = $meterTypes->find($registeredSparkMeterModel->mpm_meter_type_id);
+            } else {
+                $meterModel['syncStatus'] = SyncStatus::NotRegisteredYet;
+            }
+            $meterModel['hash'] = $meterModelHash;
+            $meterModel['relatedMeterType'] = $relatedMeterType;
+            $meterModel['registeredSparkMeterModel'] = $registeredSparkMeterModel;
+            return $meterModel;
+        });
+
+        $meterModelSyncStatus = $sparkMeterModelsCollection->whereNotIn('syncStatus', 1)->count();
+
+        if ($meterModelSyncStatus) {
+
+            return ['result' => false, 'message' => 'meter models are not updated for site ' . $siteId];
+
+        } else {
+            return ['result' => true, 'message' => 'Records are updated'];
+        }
+
+    }
+
+    public function createRelatedMeterModel($meterModel)
+    {
+        return $this->meterType->newQuery()->create([
+            'online' => 1,
+            'phase' => $meterModel['phase_count'],
+            'max_current' => $meterModel['continuous_limit']
+        ]);
+    }
+
+    public function updateRelatedMeterModel($meterModel, $relatedMeterModel)
+    {
+        return $meterModel['relatedMeterModel']->update([
+            'phase' => $meterModel['phase_count'],
+            'max_current' => $meterModel['continuous_limit'],
+        ]);
     }
 }
