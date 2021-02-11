@@ -18,7 +18,8 @@ export class CredentialService {
             id: credentialData.id,
             apiKey: credentialData.api_key,
             apiSecret: credentialData.api_secret,
-            isAuthenticated: credentialData.is_authenticated
+            isAuthenticated: credentialData.is_authenticated,
+            alert:credentialData.alert
         }
         return this.credential
     }
