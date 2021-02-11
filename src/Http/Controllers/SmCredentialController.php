@@ -4,10 +4,9 @@ namespace Inensus\SparkMeter\Http\Controllers;
 
 use Illuminate\Routing\Controller;
 use Inensus\SparkMeter\Http\Requests\SmCredentialRequest;
+use Inensus\SparkMeter\Http\Resources\SparkMeterCredentialResource;
 use Inensus\SparkMeter\Http\Resources\SparkResource;
 use Inensus\SparkMeter\Services\CredentialService;
-
-
 
 class SmCredentialController extends Controller
 {
@@ -18,19 +17,19 @@ class SmCredentialController extends Controller
 
     }
 
-    public function show():SparkResource
+    public function show(): SparkResource
     {
         return new SparkResource($this->credentialService->getCredentials());
     }
 
-    public function update(SmCredentialRequest $request):SparkResource
+    public function update(SmCredentialRequest $request): SparkMeterCredentialResource
     {
-        $credentialResponse = $this->credentialService->updateCredentials($request->only([
+        $credentials = $this->credentialService->updateCredentials($request->only([
             'id',
             'api_key',
             'api_secret'
         ]));
-        return new SparkResource($credentialResponse);
+        return new SparkMeterCredentialResource($credentials);
     }
 
 }
