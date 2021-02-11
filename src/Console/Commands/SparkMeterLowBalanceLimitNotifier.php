@@ -27,7 +27,7 @@ class SparkMeterLowBalanceLimitNotifier extends Command
         $this->sms=$sms;
     }
 
-    public function handler()
+    public function handle()
     {
         try {
             $customers = $this->smCustomerService->getLowBalancedCustomers();
