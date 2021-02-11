@@ -79,6 +79,7 @@ import { CredentialService } from '../../services/CredentialService'
 
 export default {
     name: 'Credential',
+
     data () {
         return {
             credentialService: new CredentialService(),
@@ -94,17 +95,18 @@ export default {
         },
         async submitCredentialForm () {
             let validator = await this.$validator.validateAll('Credential-Form')
-            if (!validator) {
-                return
+            if (validator) {
+                try {
+                    this.loading = true
+                    await this.credentialService.updateCredential()
+                    this.loading = false
+                    this.alertNotify('success', 'Credentials updated successfully.')
+
+                } catch (e) {
+                    this.loading = false
+                    this.alertNotify('error', e.message)
+                }
             }
-            try {
-                this.loading = true
-                const updatedData = await this.credentialService.updateCredential()
-                this.alertNotify(updatedData.alert.type, updatedData.alert.message)
-            } catch (e) {
-                this.alertNotify('error', 'MPM failed to verify your request')
-            }
-            this.loading = false
         },
         alertNotify (type, message) {
             this.$notify({
