@@ -8,7 +8,14 @@ You need to enter the **ThunderCloud Token** on the site levels.
 Koios access gives us the ability to synchronize the elder transactions( or the transaction that are not processed over Micropowermanager).
 
 
-### Installation
-`composer require inensus/spark-meter`
+## Installation
+Install the package via `composer require inensus/spark-meter`
+
+After the package is downloaded run `php artisan spark-meter:install` command. 
+
+This command will also publish its own
+vue files into the main project. 
+That means you need to run either `npm run production` manually or `docker-compose up node` if you're using the dockerized version. 
+ 
 
 
