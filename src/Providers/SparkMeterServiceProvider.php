@@ -3,6 +3,7 @@
 namespace Inensus\SparkMeter\Providers;
 
 use GuzzleHttp\Client;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 use Inensus\SparkMeter\Console\Commands\InstallSparkMeterPackage;
@@ -25,22 +26,34 @@ class SparkMeterServiceProvider extends ServiceProvider
     public function boot(Filesystem $filesystem)
     {
 
-           $this->app->register(SparkMeterRouteServiceProvider::class);
-           if ($this->app->runningInConsole()) {
-                $this->publishConfigFiles();
-                $this->publishVueFiles();
-                $this->publishMigrations($filesystem);
-                $this->commands([
-                    InstallSparkMeterPackage::class,
-                    SparkMeterTransactionStatusCheck::class,
-                    SparkMeterUpdatesGetter::class,
-                    SparkMeterLowBalanceLimitNotifier::class,
-                    SparkMeterTransactionSync::class]);
+        $this->app->register(SparkMeterRouteServiceProvider::class);
+        if ($this->app->runningInConsole()) {
+            $this->publishConfigFiles();
+            $this->publishVueFiles();
+            $this->publishMigrations($filesystem);
+            $this->commands([
+                InstallSparkMeterPackage::class,
+                SparkMeterTransactionStatusCheck::class,
+                SparkMeterUpdatesGetter::class,
+                SparkMeterLowBalanceLimitNotifier::class,
+                SparkMeterTransactionSync::class
+            ]);
 
-            }
+        }
+        $this->app->booted(function ($app) {
+            $app->make(Schedule::class)->command('spark-meter:transactionStatusCheck')->withoutOverlapping(50)
+                ->appendOutputTo(storage_path('logs/cron.log'));
+
+            $app->make(Schedule::class)->command('spark-meter:updatesGetter')->everyFiveMinutes()
+                ->appendOutputTo(storage_path('logs/cron.log'));
+
+            $app->make(Schedule::class)->command('spark-meter:transactionSync')->withoutOverlapping(50)->everyTenMinutes()
+                ->appendOutputTo(storage_path('logs/cron.log'));
+        });
+
         Relation::morphMap(
             [
-                'spark_transaction'=>SmTransaction::class
+                'spark_transaction' => SmTransaction::class
             ]);
 
     }
@@ -48,20 +61,14 @@ class SparkMeterServiceProvider extends ServiceProvider
     public function register()
     {
 
-            $this->mergeConfigFrom(__DIR__ . '/../../config/spark-meter-integration.php', 'spark');
+        $this->mergeConfigFrom(__DIR__ . '/../../config/spark-meter-integration.php', 'spark');
 
-            $this->app->register(EventServiceProvider::class);
-            $this->app->register(ObserverServiceProvider::class);
+        $this->app->register(EventServiceProvider::class);
+        $this->app->register(ObserverServiceProvider::class);
 
-            $this->app->singleton('SparkMeterApi', static function ($app) {
-                return new SparkMeterApi(new Client());
-            });
-
-            $this->app->singleton('Kernel', function ($app) {
-                $dispatcher = $app->make(\Illuminate\Contracts\Events\Dispatcher::class);
-                return new Kernel($app, $dispatcher);
-            });
-            $this->app->make('Kernel');
+        $this->app->singleton('SparkMeterApi', static function ($app) {
+            return new SparkMeterApi(new Client());
+        });
 
     }
 
@@ -84,7 +91,7 @@ class SparkMeterServiceProvider extends ServiceProvider
     public function publishMigrations($filesystem)
     {
         $this->publishes([
-            __DIR__.'/../../database/migrations/create_spark_tables.php.stub' => $this->getMigrationFileName($filesystem),
+            __DIR__ . '/../../database/migrations/create_spark_tables.php.stub' => $this->getMigrationFileName($filesystem),
         ], 'migrations');
     }
 
