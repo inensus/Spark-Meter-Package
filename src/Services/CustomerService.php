@@ -14,6 +14,7 @@ use App\Models\GeographicalInformation;
 use App\Models\Manufacturer;
 use App\Models\Meter\Meter;
 use App\Models\Meter\MeterParameter;
+use Carbon\Carbon;
 use Exception;
 use App\Models\Person\Person;
 
@@ -47,7 +48,9 @@ class CustomerService implements ISynchronizeService
     private $connectionGroup;
     private $city;
     private $cluster;
-
+    private $smSyncSettingService;
+    private $smSyncActionService;
+    private $smSmsNotifiedCustomerService;
     public function __construct(
         SparkMeterApiRequests $sparkMeterApiRequests,
         SmTableEncryption $smTableEncryption,
@@ -62,7 +65,10 @@ class CustomerService implements ISynchronizeService
         ConnectionType $connectionType,
         ConnectionGroup $connectionGroup,
         City $city,
-        Cluster $cluster
+        Cluster $cluster,
+        SmSyncSettingService $smSyncSettingService,
+        SmSyncActionService $smSyncActionService,
+        SmSmsNotifiedCustomerService $smSmsNotifiedCustomerService
     ) {
         $this->sparkMeterApiRequests = $sparkMeterApiRequests;
         $this->smTableEncryption = $smTableEncryption;
@@ -78,6 +84,9 @@ class CustomerService implements ISynchronizeService
         $this->city = $city;
         $this->smSite = $smSite;
         $this->cluster = $cluster;
+        $this->smSyncSettingService = $smSyncSettingService;
+        $this->smSyncActionService = $smSyncActionService;
+        $this->smSmsNotifiedCustomerService = $smSmsNotifiedCustomerService;
     }
 
     public function createCustomer($meterInfo, $siteId)
@@ -399,6 +408,8 @@ class CustomerService implements ISynchronizeService
 
     public function sync()
     {
+        $synSetting = $this->smSyncSettingService->getSyncSettingsByActionName('Customers');
+        $syncAction = $this->smSyncActionService->getSyncActionBySynSettingId($synSetting->id);
         try {
             $syncCheck = $this->syncCheck(true);
             $customersCollection = collect($syncCheck)->except('available_site_count');
@@ -429,15 +440,18 @@ class CustomerService implements ISynchronizeService
                         'site_id' => $customers['site_id'],
                         'credit_balance' => $customer['credit_balance'],
                     ]);
+                    $this->smSmsNotifiedCustomerService->removeLowBalancedCustomer($customer['registeredSparkCustomer']);
                 });
             });
-
+            $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, true);
             return $this->smCustomer->newQuery()->with([
                 'mpmPerson',
                 'site.mpmMiniGrid'
             ])->paginate(config('spark.paginate'));
 
         } catch (Exception $e) {
+            $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, false);
+            Log::critical('Spark customers sync failed.', ['Error :' => $e->getMessage()]);
             throw  new Exception ($e->getMessage());
         }
 
@@ -518,14 +532,24 @@ class CustomerService implements ISynchronizeService
 
         ]);
     }
-
+    public function getSparkCustomersWithAddress($lowBalanceMin)
+    {
+        return $this->smCustomer->newQuery()->with([
+            'mpmPerson.addresses'
+        ])->whereHas('mpmPerson.addresses', function ($q) {
+            return $q->where('is_primary', 1);
+        })->where(
+            'updated_at',
+            '>=',
+            Carbon::now()->subMinutes($lowBalanceMin)
+        )->get();
+    }
     public function syncCheckBySite($siteId)
     {
         try {
             $sparkCustomers = $this->sparkMeterApiRequests->get('/customers', $siteId);
         } catch (SparkAPIResponseException $e) {
             Log::critical('Spark meter customers sync-check-by-site failed.', ['Error :' => $e->getMessage()]);
-
             throw  new SparkAPIResponseException ($e->getMessage());
         }
 
