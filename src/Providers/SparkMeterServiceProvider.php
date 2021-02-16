@@ -7,14 +7,14 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\ServiceProvider;
 use Inensus\SparkMeter\Console\Commands\InstallSparkMeterPackage;
-use Inensus\SparkMeter\Console\Commands\SparkMeterLowBalanceLimitNotifier;
+use Inensus\SparkMeter\Console\Commands\SparkMeterDataSynchronizer;
+use Inensus\SparkMeter\Console\Commands\SparkMeterSmsNotifier;
 use Inensus\SparkMeter\Console\Commands\SparkMeterTransactionStatusCheck;
-use Inensus\SparkMeter\Console\Commands\SparkMeterTransactionSync;
-use Inensus\SparkMeter\Console\Commands\SparkMeterUpdatesGetter;
-use Inensus\SparkMeter\Console\Kernel;
 use Illuminate\Support\Collection;
 use Illuminate\Filesystem\Filesystem;
 
+use Inensus\SparkMeter\Models\SmSmsSetting;
+use Inensus\SparkMeter\Models\SmSyncSetting;
 use Inensus\SparkMeter\Models\SmTransaction;
 use Inensus\SparkMeter\SparkMeterApi;
 
@@ -34,26 +34,23 @@ class SparkMeterServiceProvider extends ServiceProvider
             $this->commands([
                 InstallSparkMeterPackage::class,
                 SparkMeterTransactionStatusCheck::class,
-                SparkMeterUpdatesGetter::class,
-                SparkMeterLowBalanceLimitNotifier::class,
-                SparkMeterTransactionSync::class
+                SparkMeterDataSynchronizer::class,
+                SparkMeterSmsNotifier::class
             ]);
 
         }
         $this->app->booted(function ($app) {
-            $app->make(Schedule::class)->command('spark-meter:transactionStatusCheck')->withoutOverlapping(50)
+            $app->make(Schedule::class)->command('spark-meter:dataSync')->withoutOverlapping(50)
                 ->appendOutputTo(storage_path('logs/cron.log'));
-
-            $app->make(Schedule::class)->command('spark-meter:updatesGetter')->everyFiveMinutes()
-                ->appendOutputTo(storage_path('logs/cron.log'));
-
-            $app->make(Schedule::class)->command('spark-meter:transactionSync')->withoutOverlapping(50)->everyTenMinutes()
+            $app->make(Schedule::class)->command('spark-meter:smsNotifier')->withoutOverlapping(50)
                 ->appendOutputTo(storage_path('logs/cron.log'));
         });
 
         Relation::morphMap(
             [
-                'spark_transaction' => SmTransaction::class
+                'spark_transaction' => SmTransaction::class,
+                'sync_setting' => SmSyncSetting::class,
+                'sms_setting' => SmSmsSetting::class,
             ]);
 
     }
