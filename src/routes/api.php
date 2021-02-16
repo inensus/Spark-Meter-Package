@@ -41,5 +41,14 @@ Route::group(['prefix' => 'spark-meters'], function () {
         Route::get('/count', 'SmTariffController@count');
 
     });
+    Route::group(['prefix' => 'sm-setting'], function () {
+        Route::get('/', 'SmSettingController@index');
+        Route::group(['prefix' => 'sms-setting'], function () {
+            Route::put('/', 'SmSmsSettingController@update');
+        });
+        Route::group(['prefix' => 'sync-setting'], function () {
+            Route::put('/', 'SmSyncSettingController@update');
+        });
+    });
 });
 

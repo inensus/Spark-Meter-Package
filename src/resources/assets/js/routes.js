@@ -29,4 +29,9 @@ let routes = [
         component: require('./plugins/spark-meter/js/components/Overview/Overview').default,
         meta: { layout: 'default' },
     },
+    {
+        path: '/spark-meters/sm-setting',
+        component: require('./plugins/spark-meter/js/components/Setting/Setting').default,
+        meta: { layout: 'default' },
+    },
 ]
