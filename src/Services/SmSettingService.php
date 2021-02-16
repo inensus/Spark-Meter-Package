@@ -20,6 +20,6 @@ class SmSettingService
     public function getSettings()
     {
 
-        return $this->smSetting->newQuery()->with(['settingSms','settingSync'])->whereHasMorph('setting', [SmSmsSetting::class,SmSyncSetting::class])->get();
+        return $this->smSetting->newQuery()->with(['settingSms','settingSync'])->whereHasMorph('setting','*')->get();
     }
 }
