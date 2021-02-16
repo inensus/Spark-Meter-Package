@@ -20,6 +20,8 @@ class MeterModelService implements ISynchronizeService
     private $smMeterModel;
     private $smSite;
     private $meterType;
+    private $smSyncSettingService;
+    private $smSyncActionService;
 
     public function __construct(
 
@@ -27,8 +29,9 @@ class MeterModelService implements ISynchronizeService
         SmTableEncryption $smTableEncryption,
         SmMeterModel $smMeterModel,
         SmSite $smSite,
-        MeterType $meterType
-
+        MeterType $meterType,
+        SmSyncSettingService $smSyncSettingService,
+        SmSyncActionService $smSyncActionService
     ) {
 
         $this->sparkMeterApiRequests = $sparkMeterApiRequests;
@@ -36,6 +39,8 @@ class MeterModelService implements ISynchronizeService
         $this->smMeterModel = $smMeterModel;
         $this->smSite = $smSite;
         $this->meterType = $meterType;
+        $this->smSyncSettingService = $smSyncSettingService;
+        $this->smSyncActionService = $smSyncActionService;
     }
 
     public function getSmMeterModels($request)
@@ -51,15 +56,12 @@ class MeterModelService implements ISynchronizeService
 
     public function sync()
     {
+        $synSetting = $this->smSyncSettingService->getSyncSettingsByActionName('MeterModels');
+        $syncAction = $this->smSyncActionService->getSyncActionBySynSettingId($synSetting->id);
         try {
             $syncCheck = $this->syncCheck(true);
-
             $meterModelsCollection = collect($syncCheck)->except('available_site_count');
-
-
             $meterModelsCollection->each(function ($meterModels) {
-
-
                 $meterModels['site_data']->filter(function ($meterModel) {
                     return $meterModel['syncStatus'] === 3;
                 })->each(function ($meterModel) use ($meterModels) {
@@ -93,12 +95,14 @@ class MeterModelService implements ISynchronizeService
                     ]);
                 });
             });
+            $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, true);
             return $this->smMeterModel->newQuery()->with([
                 'meterType',
                 'site.mpmMiniGrid'
             ])->paginate(config('paginate.paginate'));
 
         } catch (Exception $e) {
+            $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, false);
             Log::critical('Spark meter models sync failed.', ['Error :' => $e->getMessage()]);
             throw  new Exception ($e->getMessage());
         }

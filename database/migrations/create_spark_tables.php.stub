@@ -75,6 +75,42 @@ class CreateSparkTables extends Migration
             $table->string('timestamp');
             $table->timestamps();
         });
+        Schema::create('sm_sync_actions', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('sync_setting_id');
+            $table->integer('attempts')->default(0);
+            $table->dateTime('last_sync')->nullable();
+            $table->dateTime('next_sync')->nullable();
+            $table->timestamps();
+        });
+        Schema::create('sm_settings', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('setting_id');
+            $table->string('setting_type');
+            $table->timestamps();
+        });
+        Schema::create('sm_sms_settings', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('state')->unique();
+            $table->integer('not_send_elder_than_mins');
+            $table->boolean('enabled')->default(true);
+            $table->timestamps();
+        });
+        Schema::create('sm_sync_settings', function (Blueprint $table) {
+            $table->increments('id');
+            $table->string('action_name')->unique();
+            $table->string('sync_in_value_str');
+            $table->integer('sync_in_value_num');
+            $table->integer('max_attempts')->default(3);
+            $table->timestamps();
+        });
+        Schema::create('sm_sms_notified_customers', function (Blueprint $table) {
+            $table->increments('id');
+            $table->integer('customer_id');
+            $table->string('notify_type');
+            $table->string('notify_id')->nullable()->unique();
+            $table->timestamps();
+        });
     }
     public function down(){
         Schema::dropIfExists('sm_api_credentials');
@@ -84,5 +120,10 @@ class CreateSparkTables extends Migration
         Schema::dropIfExists('sm_sites');
         Schema::dropIfExists('sm_tariffs');
         Schema::dropIfExists('sm_transactions');
+        Schema::dropIfExists('sm_sync_actions');
+        Schema::dropIfExists('sm_settings');
+        Schema::dropIfExists('sm_sms_settings');
+        Schema::dropIfExists('sm_sync_settings');
+        Schema::dropIfExists('sm_sms_notified_customers');
     }
 }

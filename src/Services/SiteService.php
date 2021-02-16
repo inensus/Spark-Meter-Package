@@ -29,7 +29,8 @@ class SiteService implements ISynchronizeService
     private $miniGrid;
     private $city;
     private $geographicalInformation;
-
+    private $smSyncSettingService;
+    private $smSyncActionService;
     public function __construct(
         SmSite $site,
         SparkMeterApiRequests $sparkMeterApiRequests,
@@ -38,7 +39,9 @@ class SiteService implements ISynchronizeService
         Cluster $cluster,
         MiniGrid $miniGrid,
         City $city,
-        GeographicalInformation $geographicalInformation
+        GeographicalInformation $geographicalInformation,
+        SmSyncSettingService $smSyncSettingService,
+        SmSyncActionService $smSyncActionService
     ) {
         $this->site = $site;
         $this->sparkMeterApiRequests = $sparkMeterApiRequests;
@@ -48,6 +51,8 @@ class SiteService implements ISynchronizeService
         $this->miniGrid = $miniGrid;
         $this->city = $city;
         $this->geographicalInformation = $geographicalInformation;
+        $this->smSyncSettingService = $smSyncSettingService;
+        $this->smSyncActionService = $smSyncActionService;
     }
 
     public function getSmSites($request)
@@ -153,6 +158,8 @@ class SiteService implements ISynchronizeService
 
     public function sync()
     {
+        $synSetting = $this->smSyncSettingService->getSyncSettingsByActionName('Sites');
+        $syncAction = $this->smSyncActionService->getSyncActionBySynSettingId($synSetting->id);
         try {
             $syncCheck = $this->syncCheck(true);
             $syncCheck['data']->filter(function ($site) {
@@ -181,8 +188,10 @@ class SiteService implements ISynchronizeService
                     'hash' => $site['hash'],
                 ]);
             });
+            $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, true);
             return $this->site->newQuery()->with('mpmMiniGrid')->paginate(config('spark.paginate'));
         } catch (Exception $e) {
+            $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, false);
             Log::critical('Spark sites sync failed.', ['Error :' => $e->getMessage()]);
             throw  new Exception ($e->getMessage());
         }

@@ -25,7 +25,6 @@ use Inensus\SparkMeter\Models\SmTransaction;
 
 class TransactionService
 {
-
     private $sparkMeterApiRequests;
     private $sparkOrganization;
     private $sparkCredentialService;
@@ -41,6 +40,9 @@ class TransactionService
     private $sparkSite;
     private $smCustomer;
     private $rootUrl = '/transaction/';
+    private $smSyncSettingService;
+    private $smSyncActionService;
+
 
     public function __construct(
         SparkMeterApiRequests $sparkMeterApiRequests,
@@ -56,7 +58,9 @@ class TransactionService
         ThirdPartyTransaction $thirdPartyTransaction,
         Transaction $transaction,
         MeterToken $meterToken,
-        SmCustomer $smCustomer
+        SmCustomer $smCustomer,
+        SmSyncSettingService $smSyncSettingService,
+        SmSyncActionService $smSyncActionService
 
     ) {
         $this->sparkMeterApiRequests = $sparkMeterApiRequests;
@@ -73,6 +77,8 @@ class TransactionService
         $this->transaction = $transaction;
         $this->meterToken = $meterToken;
         $this->smCustomer = $smCustomer;
+        $this->smSyncSettingService = $smSyncSettingService;
+        $this->smSyncActionService = $smSyncActionService;
     }
 
     public function updateTransactionStatus($smTransaction)
@@ -136,6 +142,9 @@ class TransactionService
 
     public function sync()
     {
+        $synSetting = $this->smSyncSettingService->getSyncSettingsByActionName('Transactions');
+        $syncAction = $this->smSyncActionService->getSyncActionBySynSettingId($synSetting->id);
+        $syncCheck=[];
         //TODO find a way for variety of error handling acts.
         try {
             $syncCheck = $this->syncCheck();
@@ -168,6 +177,7 @@ class TransactionService
         try {
             $result = $this->sparkMeterApiRequests->postToKoios($koiosUrl, $params);
         } catch (SparkAPIResponseException $exception) {
+            $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, false);
             throw new SparkAPIResponseException($exception->getMessage());
         }
         $params['cursor'] = $result['cursor'];
@@ -180,6 +190,11 @@ class TransactionService
         $sparkTariffs = $this->sparkTariff->newQuery()->get();
         do {
             if ($count===1){
+                break;
+            }
+            dump("kemo");
+            dump($syncCheck);
+            if (!count($syncCheck)){
                 break;
             }
             collect($transactions)->filter(function ($transaction) {
@@ -255,11 +270,12 @@ class TransactionService
                 $count=$result['count'];
                 $transactions = $result['results'];
             } catch (SparkAPIResponseException $exception) {
+                $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, false);
                 throw new SparkAPIResponseException($exception->getMessage());
             }
 
         } while ($params['cursor'] && $count>0);
-
+        $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, true);
     }
 
     public function syncCheck()
@@ -308,7 +324,14 @@ class TransactionService
             'external_id' => $transaction['external_id'],
         ]);
     }
+    public function getSparkTransactions($transactionMin)
+    {
+        $transactions= $this->sparkTransaction->newQuery()->with(['thirdPartyTransaction.transaction'])->where('status','processed')->get();
+        return $transactions->filter(function ($transaction) use ($transactionMin){
+            return Carbon::parse($transaction->timestamp) >= Carbon::now()->subMinutes($transactionMin);
+        });
 
+    }
     private function createThirdPartyTransaction($transaction, $sparkTransaction, $status)
     {
         $thirdPartyTransaction = $this->thirdPartyTransaction->newQuery()->make([
