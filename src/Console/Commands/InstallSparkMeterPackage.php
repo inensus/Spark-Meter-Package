@@ -9,6 +9,8 @@ use Inensus\SparkMeter\Services\CustomerService;
 use Inensus\SparkMeter\Services\MeterModelService;
 use Inensus\SparkMeter\Services\MenuItemService;
 use Inensus\SparkMeter\Services\SiteService;
+use Inensus\SparkMeter\Services\SmSmsSettingService;
+use Inensus\SparkMeter\Services\SmSyncSettingService;
 
 class InstallSparkMeterPackage extends Command
 {
@@ -21,6 +23,8 @@ class InstallSparkMeterPackage extends Command
     private $menuItemService;
     private $customerService;
     private $siteService;
+    private $smsSettingService;
+    private $syncSettingService;
 
     /**
      * Create a new command instance.
@@ -31,6 +35,8 @@ class InstallSparkMeterPackage extends Command
      * @param MenuItemService $menuItemService
      * @param CustomerService $customerService
      * @param SiteService $siteService
+     * @param SmSmsSettingService $smsSettingService
+     * @param SmSyncSettingService $syncSettingService
      */
     public function __construct(
         InsertSparkMeterApi $insertSparkMeterApi,
@@ -38,7 +44,9 @@ class InstallSparkMeterPackage extends Command
         CredentialService $credentialService,
         MenuItemService $menuItemService,
         CustomerService $customerService,
-        SiteService $siteService
+        SiteService $siteService,
+        SmSmsSettingService $smsSettingService,
+        SmSyncSettingService $syncSettingService
     ) {
         parent::__construct();
         $this->insertSparkMeterApi = $insertSparkMeterApi;
@@ -47,6 +55,8 @@ class InstallSparkMeterPackage extends Command
         $this->menuItemService=$menuItemService;
         $this->customerService=$customerService;
         $this->siteService=$siteService;
+        $this->smsSettingService = $smsSettingService;
+        $this->syncSettingService = $syncSettingService;
     }
 
     public function handle(): void
@@ -86,7 +96,8 @@ class InstallSparkMeterPackage extends Command
                 'subMenuItems' => $menuItems['subMenuItems'],
             ]);
         }
-
+        $this->syncSettingService->createDefaultSettings();
+        $this->smsSettingService->createDefaultSettings();
         $this->call('sidebar:generate');
 
         $this->info('Package installed successfully..');
