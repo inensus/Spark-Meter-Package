@@ -2,6 +2,7 @@
 
 namespace Inensus\SparkMeter\Providers;
 
+
 use GuzzleHttp\Client;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -12,10 +13,15 @@ use Inensus\SparkMeter\Console\Commands\SparkMeterSmsNotifier;
 use Inensus\SparkMeter\Console\Commands\SparkMeterTransactionStatusCheck;
 use Illuminate\Support\Collection;
 use Illuminate\Filesystem\Filesystem;
-
+use App\Models\Transaction\Transaction;
+use App\Models\Meter\MeterParameter;
+use Inensus\SparkMeter\Http\Requests\SparkMeterApiRequests;
+use Inensus\SparkMeter\Models\SmCustomer;
 use Inensus\SparkMeter\Models\SmSmsSetting;
 use Inensus\SparkMeter\Models\SmSyncSetting;
+use Inensus\SparkMeter\Models\SmTariff;
 use Inensus\SparkMeter\Models\SmTransaction;
+use Inensus\SparkMeter\Services\TariffService;
 use Inensus\SparkMeter\SparkMeterApi;
 
 class SparkMeterServiceProvider extends ServiceProvider
@@ -63,8 +69,16 @@ class SparkMeterServiceProvider extends ServiceProvider
         $this->app->register(EventServiceProvider::class);
         $this->app->register(ObserverServiceProvider::class);
 
-        $this->app->singleton('SparkMeterApi', static function ($app) {
-            return new SparkMeterApi(new Client());
+        $this->app->bind('SparkMeterApi', static function () {
+            $client = new Client();
+            $sparkMeterApiRequests = new SparkMeterApiRequests();
+            $tariffService = new TariffService();
+            $meterParameter = new MeterParameter();
+            $smCustomer = new SmCustomer();
+            $smTransaction  = new SmTransaction();
+            $smTariff = new SmTariff();
+            $transaction = new Transaction();
+            return new SparkMeterApi($sparkMeterApiRequests,$client,$tariffService,$meterParameter,$smCustomer,$smTransaction,$smTariff,$transaction);
         });
 
     }
