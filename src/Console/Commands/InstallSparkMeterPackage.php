@@ -9,7 +9,9 @@ use Inensus\SparkMeter\Services\CustomerService;
 use Inensus\SparkMeter\Services\MeterModelService;
 use Inensus\SparkMeter\Services\MenuItemService;
 use Inensus\SparkMeter\Services\SiteService;
+use Inensus\SparkMeter\Services\SmSmsBodyService;
 use Inensus\SparkMeter\Services\SmSmsSettingService;
+use Inensus\SparkMeter\Services\SmSmsVariableDefaultValueService;
 use Inensus\SparkMeter\Services\SmSyncSettingService;
 
 class InstallSparkMeterPackage extends Command
@@ -25,6 +27,8 @@ class InstallSparkMeterPackage extends Command
     private $siteService;
     private $smsSettingService;
     private $syncSettingService;
+    private $smsBodyService;
+    private $defaultValueService;
 
     /**
      * Create a new command instance.
@@ -37,6 +41,8 @@ class InstallSparkMeterPackage extends Command
      * @param SiteService $siteService
      * @param SmSmsSettingService $smsSettingService
      * @param SmSyncSettingService $syncSettingService
+     * @param SmSmsBodyService $smsBodyService
+     * @param SmSmsVariableDefaultValueService $defaultValueService
      */
     public function __construct(
         InsertSparkMeterApi $insertSparkMeterApi,
@@ -46,7 +52,10 @@ class InstallSparkMeterPackage extends Command
         CustomerService $customerService,
         SiteService $siteService,
         SmSmsSettingService $smsSettingService,
-        SmSyncSettingService $syncSettingService
+        SmSyncSettingService $syncSettingService,
+        SmSmsBodyService $smsBodyService,
+        SmSmsVariableDefaultValueService $defaultValueService
+
     ) {
         parent::__construct();
         $this->insertSparkMeterApi = $insertSparkMeterApi;
@@ -57,6 +66,9 @@ class InstallSparkMeterPackage extends Command
         $this->siteService=$siteService;
         $this->smsSettingService = $smsSettingService;
         $this->syncSettingService = $syncSettingService;
+        $this->smsBodyService = $smsBodyService;
+        $this->defaultValueService = $defaultValueService;
+
     }
 
     public function handle(): void
@@ -71,6 +83,8 @@ class InstallSparkMeterPackage extends Command
 
          $this->info('Creating database tables\n');
          $this->call('migrate');
+         $this->smsBodyService->createSmsBodies();
+         $this->defaultValueService->createSmsVariableDefaultValues();
 
         $this->info('Copying vue files\n');
         $this->call('vendor:publish', [
