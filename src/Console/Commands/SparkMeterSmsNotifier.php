@@ -8,7 +8,6 @@ use App\Models\Sms;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Inensus\SparkMeter\Exceptions\CronJobException;
-use Inensus\SparkMeter\Helpers\SmsBodyGenerator;
 use Inensus\SparkMeter\Jobs\SparkSmsProcessor;
 use Inensus\SparkMeter\Services\CustomerService;
 use Inensus\SparkMeter\Services\SmSmsNotifiedCustomerService;
@@ -28,15 +27,13 @@ class SparkMeterSmsNotifier extends Command
     private $smTransactionService;
     private $smSmsNotifiedCustomerService;
     private $smCustomerService;
-    private $smsBodyGenerator;
 
     public function __construct(
         SmSmsSettingService $smsSettingService,
         Sms $sms,
         TransactionService $smTransactionsService,
         SmSmsNotifiedCustomerService $smSmsNotifiedCustomerService,
-        CustomerService $smCustomerService,
-        SmsBodyGenerator $smsBodyGenerator
+        CustomerService $smCustomerService
     ) {
         parent::__construct();
         $this->smsSettingsService = $smsSettingService;
@@ -44,7 +41,6 @@ class SparkMeterSmsNotifier extends Command
         $this->smTransactionService = $smTransactionsService;
         $this->smSmsNotifiedCustomerService = $smSmsNotifiedCustomerService;
         $this->smCustomerService = $smCustomerService;
-        $this->smsBodyGenerator = $smsBodyGenerator;
     }
     public function handle()
     {
