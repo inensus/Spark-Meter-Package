@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Models;
 
 use Illuminate\Database\Eloquent\Relations\MorphTo;

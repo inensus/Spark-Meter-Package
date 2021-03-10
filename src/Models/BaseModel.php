@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Created by PhpStorm.
  * User: kemal
@@ -20,6 +21,3 @@ class BaseModel extends Model
         // TODO: Implement resolveChildRouteBinding() method.
     }
 }
-
-
-

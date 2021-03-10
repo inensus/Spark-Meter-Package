@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Services;
-
 
 use Inensus\SparkMeter\Models\SmSmsNotifiedCustomer;
 

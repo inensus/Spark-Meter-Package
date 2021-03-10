@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Http\Controllers;
-
 
 use Illuminate\Http\Request;
 use Inensus\SparkMeter\Http\Resources\SparkResource;

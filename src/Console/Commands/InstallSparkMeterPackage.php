@@ -55,20 +55,18 @@ class InstallSparkMeterPackage extends Command
         SmSyncSettingService $syncSettingService,
         SmSmsBodyService $smsBodyService,
         SmSmsVariableDefaultValueService $defaultValueService
-
     ) {
         parent::__construct();
         $this->insertSparkMeterApi = $insertSparkMeterApi;
         $this->meterModelService = $meterModelService;
-        $this->credentialService=$credentialService;
-        $this->menuItemService=$menuItemService;
-        $this->customerService=$customerService;
-        $this->siteService=$siteService;
+        $this->credentialService = $credentialService;
+        $this->menuItemService = $menuItemService;
+        $this->customerService = $customerService;
+        $this->siteService = $siteService;
         $this->smsSettingService = $smsSettingService;
         $this->syncSettingService = $syncSettingService;
         $this->smsBodyService = $smsBodyService;
         $this->defaultValueService = $defaultValueService;
-
     }
 
     public function handle(): void
@@ -104,7 +102,7 @@ class InstallSparkMeterPackage extends Command
         $this->call('routes:generate');
 
         $menuItems = $this->menuItemService->createMenuItems();
-        if(array_key_exists('menuItem',$menuItems)){
+        if (array_key_exists('menuItem', $menuItems)) {
             $this->call('menu-items:generate', [
                 'menuItem' => $menuItems['menuItem'],
                 'subMenuItems' => $menuItems['subMenuItems'],
@@ -116,18 +114,16 @@ class InstallSparkMeterPackage extends Command
 
         $this->info('Package installed successfully..');
 
-        $connections=$this->customerService->checkConnectionAvailability();
-        if(!$this->siteService->checkLocationAvailability()){
+        $connections = $this->customerService->checkConnectionAvailability();
+        if (!$this->siteService->checkLocationAvailability()) {
             $this->warn('------------------------------');
             $this->warn("Spark Meter package needs least one registered Cluster.");
             $this->warn("If you have no Cluster, please navigate to #Locations# section and register your locations.");
         }
-        if(!$connections['type']||!$connections['group']){
+        if (!$connections['type'] || !$connections['group']) {
             $this->warn('------------------------------');
             $this->warn("Spark Meter package needs least one Connection Group and one Connection Type.");
             $this->warn("Before you get Customers from Spark Meter please check them in #Connection# section.");
         }
-
-
     }
 }

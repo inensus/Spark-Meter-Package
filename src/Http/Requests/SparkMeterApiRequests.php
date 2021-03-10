@@ -8,7 +8,6 @@ use Inensus\SparkMeter\Helpers\ResultStatusChecker;
 use Inensus\SparkMeter\Models\SmCredential;
 use Inensus\SparkMeter\Models\SmSite;
 
-
 class SparkMeterApiRequests
 {
 
@@ -28,7 +27,7 @@ class SparkMeterApiRequests
         $this->resultStatusChecker = $resultStatusChecker;
         $this->credential = $credential;
         $this->site = $site;
-        $this->smCredentail=$smCredential;
+        $this->smCredentail = $smCredential;
     }
 
     public function get($url, $siteId)
@@ -47,7 +46,7 @@ class SparkMeterApiRequests
             ]
         );
 
-        return $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
+        return $this->resultStatusChecker->checkApiResult(json_decode((string)$request->getBody(), true));
     }
 
     public function post($url, $postParams, $siteId)
@@ -64,7 +63,7 @@ class SparkMeterApiRequests
             ]
         );
 
-        return $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
+        return $this->resultStatusChecker->checkApiResult(json_decode((string)$request->getBody(), true));
     }
 
     public function put($url, $putParams, $siteId)
@@ -81,8 +80,7 @@ class SparkMeterApiRequests
             ]
         );
 
-        return $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
-
+        return $this->resultStatusChecker->checkApiResult(json_decode((string)$request->getBody(), true));
     }
 
     public function getByParams($url, $params, $siteId)
@@ -110,7 +108,6 @@ class SparkMeterApiRequests
                 'status' => 'failure'
             ];
         }
-
     }
 
     public function getInfo($url, $id, $siteId)
@@ -126,7 +123,7 @@ class SparkMeterApiRequests
                 ],
             ]
         );
-        return $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
+        return $this->resultStatusChecker->checkApiResult(json_decode((string)$request->getBody(), true));
     }
 
 
@@ -143,7 +140,7 @@ class SparkMeterApiRequests
                 ],
             ]
         );
-        return $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
+        return $this->resultStatusChecker->checkApiResult(json_decode((string)$request->getBody(), true));
     }
 
     public function postToKoios($url, $postParams)
@@ -160,7 +157,7 @@ class SparkMeterApiRequests
                 ],
             ]
         );
-        return $this->resultStatusChecker->CheckApiResult(json_decode((string)$request->getBody(), true));
+        return $this->resultStatusChecker->checkApiResult(json_decode((string)$request->getBody(), true));
     }
 
     private function getCredentials()

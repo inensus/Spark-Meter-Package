@@ -23,7 +23,6 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
 use Inensus\SparkMeter\Jobs\SparkSmsProcessor;
 use Inensus\SparkMeter\Models\SmCustomer;
-use Inensus\SparkMeter\Models\SmMeter;
 use Inensus\SparkMeter\Models\SmSetting;
 use Inensus\SparkMeter\Models\SmSmsBody;
 use Inensus\SparkMeter\Models\SmSmsNotifiedCustomer;
@@ -119,7 +118,7 @@ class SmsNotifyTest extends TestCase
             'timestamp',
             '>=',
             Carbon::now()->subMinutes($transactionMin)
-        )->where('status','processed')->get()->each(function ($sparkTransaction) use (
+        )->where('status', 'processed')->get()->each(function ($sparkTransaction) use (
             $transactionMin,
             $smsNotifiedCustomers,
             $customers
@@ -271,12 +270,12 @@ class SmsNotifyTest extends TestCase
     private function initializeSparkTransaction($customer)
     {
 
-      $sparkTransaction = SmTransaction::query()->create([
+        $sparkTransaction = SmTransaction::query()->create([
             'site_id' => 1,
-            'customer_id' =>$customer->id,
+            'customer_id' => $customer->id,
             'transaction_id' => "1111",
             'status' => 'processed',
-            'timestamp'=> Carbon::now()->toIso8601ZuluString(),
+            'timestamp' => Carbon::now()->toIso8601ZuluString(),
             'external_id' => null,
         ]);
 

@@ -1,14 +1,11 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Http\Controllers;
-
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Inensus\SparkMeter\Http\Resources\SparkResource;
 use Inensus\SparkMeter\Services\MeterModelService;
-
 
 class SmMeterModelController extends Controller implements IBaseController
 {

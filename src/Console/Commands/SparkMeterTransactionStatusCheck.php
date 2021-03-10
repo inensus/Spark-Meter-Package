@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Console\Commands;
 
 use Illuminate\Console\Command;
@@ -21,15 +20,15 @@ class SparkMeterTransactionStatusCheck extends Command
     ) {
         parent::__construct();
         $this->transactionService = $transactionService;
-        $this->smTransaction=$smTransaction;
+        $this->smTransaction = $smTransaction;
     }
 
     public function handle(): void
     {
         $smTransactions = $this->smTransaction->newQuery()
-            ->where('status','error')
-            ->orWhere('status','not-processed')
-            ->orWhere('status','pending')
+            ->where('status', 'error')
+            ->orWhere('status', 'not-processed')
+            ->orWhere('status', 'pending')
             ->whereNotNull('external_id')
             ->get();
         foreach ($smTransactions as $key => $smTransaction) {

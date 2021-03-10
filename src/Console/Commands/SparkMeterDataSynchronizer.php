@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Console\Commands;
-
 
 use App\Jobs\SmsProcessor;
 use App\Models\Address\Address;
@@ -42,16 +40,15 @@ class SparkMeterDataSynchronizer extends Command
         CustomerService $smCustomerService,
         SmSyncActionService $smSyncActionService,
         Address $address
-
     ) {
         parent::__construct();
         $this->smSiteService = $smSiteService;
         $this->smMeterModelService = $smMeterModelService;
         $this->smTariffService = $smTariffService;
-        $this->smTransactionService=$smTransactionService;
+        $this->smTransactionService = $smTransactionService;
         $this->smCustomerService = $smCustomerService;
-        $this->smSyncActionService=$smSyncActionService;
-        $this->smSyncSettingService=$smSyncSettingService;
+        $this->smSyncActionService = $smSyncActionService;
+        $this->smSyncSettingService = $smSyncSettingService;
     }
 
     public function handle(): void
@@ -65,7 +62,6 @@ class SparkMeterDataSynchronizer extends Command
         $syncActions = $this->smSyncActionService->getActionsNeedsToSync();
         try {
             $this->smSyncSettingService->getSyncSettings()->each(function ($syncSetting) use ($syncActions) {
-                $syncNeeded = $syncActions->whereIn('sync_setting_id', $syncSetting->id)->where('attempts', '<', $syncSetting->max_attempts)->first();
                 $syncAction = $syncActions->where('sync_setting_id', $syncSetting->id)->first();
                 if (!$syncAction) {
                     return true;
@@ -91,7 +87,7 @@ class SparkMeterDataSynchronizer extends Command
                         $data,
                         SmsTypes::MANUAL_SMS
                     )->allOnConnection('redis')->onQueue(\config('services.queues.sms'));
-                }else{
+                } else {
                     switch ($syncSetting->action_name) {
                         case 'Sites':
                             $this->smSiteService->sync();

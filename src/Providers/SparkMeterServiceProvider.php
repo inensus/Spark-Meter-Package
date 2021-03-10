@@ -2,7 +2,6 @@
 
 namespace Inensus\SparkMeter\Providers;
 
-
 use GuzzleHttp\Client;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -43,7 +42,6 @@ class SparkMeterServiceProvider extends ServiceProvider
                 SparkMeterDataSynchronizer::class,
                 SparkMeterSmsNotifier::class
             ]);
-
         }
         $this->app->booted(function ($app) {
             $app->make(Schedule::class)->command('spark-meter:dataSync')->withoutOverlapping(50)
@@ -57,8 +55,8 @@ class SparkMeterServiceProvider extends ServiceProvider
                 'spark_transaction' => SmTransaction::class,
                 'sync_setting' => SmSyncSetting::class,
                 'sms_setting' => SmSmsSetting::class,
-            ]);
-
+            ]
+        );
     }
 
     public function register()
@@ -75,20 +73,27 @@ class SparkMeterServiceProvider extends ServiceProvider
             $tariffService = new TariffService();
             $meterParameter = new MeterParameter();
             $smCustomer = new SmCustomer();
-            $smTransaction  = new SmTransaction();
+            $smTransaction = new SmTransaction();
             $smTariff = new SmTariff();
             $transaction = new Transaction();
-            return new SparkMeterApi($sparkMeterApiRequests,$client,$tariffService,$meterParameter,$smCustomer,$smTransaction,$smTariff,$transaction);
+            return new SparkMeterApi(
+                $sparkMeterApiRequests,
+                $client,
+                $tariffService,
+                $meterParameter,
+                $smCustomer,
+                $smTransaction,
+                $smTariff,
+                $transaction
+            );
         });
-
     }
 
 
     public function publishVueFiles()
     {
         $this->publishes([
-            __DIR__ . '/../resources/assets' => resource_path('assets/js/plugins/spark-meter'
-            ),
+            __DIR__ . '/../resources/assets' => resource_path('assets/js/plugins/spark-meter'),
         ], 'vue-components');
     }
 
@@ -102,7 +107,8 @@ class SparkMeterServiceProvider extends ServiceProvider
     public function publishMigrations($filesystem)
     {
         $this->publishes([
-            __DIR__ . '/../../database/migrations/create_spark_tables.php.stub' => $this->getMigrationFileName($filesystem),
+            __DIR__ . '/../../database/migrations/create_spark_tables.php.stub'
+            => $this->getMigrationFileName($filesystem),
         ], 'migrations');
     }
 

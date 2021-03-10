@@ -24,7 +24,6 @@ class MeterModelService implements ISynchronizeService
     private $smSyncActionService;
 
     public function __construct(
-
         SparkMeterApiRequests $sparkMeterApiRequests,
         SmTableEncryption $smTableEncryption,
         SmMeterModel $smMeterModel,
@@ -84,8 +83,11 @@ class MeterModelService implements ISynchronizeService
                 $meterModels['site_data']->filter(function ($meterModel) {
                     return $meterModel['syncStatus'] === 2;
                 })->each(function ($meterModel) use ($meterModels) {
-                    is_null($meterModel['relatedMeterType']) ? $this->createRelatedMeterModel($meterModel) : $this->updateRelatedMeterModel($meterModel,
-                        $meterModel['relatedMeterType']);
+                    is_null($meterModel['relatedMeterType']) ?
+                        $this->createRelatedMeterModel($meterModel) : $this->updateRelatedMeterModel(
+                            $meterModel,
+                            $meterModel['relatedMeterType']
+                        );
                     $meterModel['registeredSparkMeterModel']->update([
                         'model_name' => $meterModel['name'],
                         'continuous_limit' => $meterModel['continuous_limit'],
@@ -100,11 +102,10 @@ class MeterModelService implements ISynchronizeService
                 'meterType',
                 'site.mpmMiniGrid'
             ])->paginate(config('paginate.paginate'));
-
         } catch (Exception $e) {
             $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, false);
             Log::critical('Spark meter models sync failed.', ['Error :' => $e->getMessage()]);
-            throw  new Exception ($e->getMessage());
+            throw  new Exception($e->getMessage());
         }
     }
 
@@ -117,12 +118,13 @@ class MeterModelService implements ISynchronizeService
             $url = $this->rootUrl . '/models';
             try {
                 $sparkMeterModels = $this->sparkMeterApiRequests->get($url, $site->site_id);
-
             } catch (SparkAPIResponseException $e) {
                 Log::critical('Spark meter meter-models sync-check failed.', ['Error :' => $e->getMessage()]);
                 if ($returnData) {
-                    array_push($returnArray,
-                        ['result' => false]);
+                    array_push(
+                        $returnArray,
+                        ['result' => false]
+                    );
                 }
                 throw  new SparkAPIResponseException($e->getMessage());
             }
@@ -137,10 +139,11 @@ class MeterModelService implements ISynchronizeService
                 $relatedMeterType = null;
                 $meterModelHash = $this->modelHasher($meterModel, null);
                 if ($registeredSparkMeterModel) {
-                    $meterModel['syncStatus'] = $meterModelHash === $registeredSparkMeterModel->hash ? SyncStatus::Synced : SyncStatus::Modified;
+                    $meterModel['syncStatus'] = $meterModelHash === $registeredSparkMeterModel->hash ?
+                        SyncStatus::SYNCED : SyncStatus::MODIFIED;
                     $relatedMeterType = $meterTypes->find($registeredSparkMeterModel->mpm_meter_type_id);
                 } else {
-                    $meterModel['syncStatus'] = SyncStatus::NotRegisteredYet;
+                    $meterModel['syncStatus'] = SyncStatus::NOT_REGISTERED_YET;
                 }
                 $meterModel['hash'] = $meterModelHash;
                 $meterModel['relatedMeterType'] = $relatedMeterType;
@@ -151,13 +154,11 @@ class MeterModelService implements ISynchronizeService
             $meterModelSyncStatus = $sparkMeterModelsCollection->whereNotIn('syncStatus', 1)->count();
 
             if ($meterModelSyncStatus) {
-
                 $returnData ? array_push($returnArray, [
                     'site_id' => $site->site_id,
                     'site_data' => $sparkMeterModelsCollection,
                     'result' => false
                 ]) : array_push($returnArray, ['result' => false]);
-
             } else {
                 $returnData ? array_push($returnArray, [
                     'site_id' => $site->site_id,
@@ -165,12 +166,9 @@ class MeterModelService implements ISynchronizeService
                     'result' => true
                 ]) : array_push($returnArray, ['result' => true]);
             }
-
         }
 
         return $returnArray;
-
-
     }
 
     public function modelHasher($model, ...$params): string
@@ -189,9 +187,8 @@ class MeterModelService implements ISynchronizeService
             $url = $this->rootUrl . '/models';
             $sparkMeterModels = $this->sparkMeterApiRequests->get($url, $siteId);
         } catch (SparkAPIResponseException $e) {
-
             Log::critical('Spark meter meter-models sync-check-by-site failed.', ['Error :' => $e->getMessage()]);
-            throw  new SparkAPIResponseException ($e->getMessage());
+            throw  new SparkAPIResponseException($e->getMessage());
         }
         $sparkMeterModelsCollection = collect($sparkMeterModels['models']);
 
@@ -204,10 +201,11 @@ class MeterModelService implements ISynchronizeService
             $relatedMeterType = null;
             $meterModelHash = $this->modelHasher($meterModel, null);
             if ($registeredSparkMeterModel) {
-                $meterModel['syncStatus'] = $meterModelHash === $registeredSparkMeterModel->hash ? SyncStatus::Synced : SyncStatus::Modified;
+                $meterModel['syncStatus'] = $meterModelHash === $registeredSparkMeterModel->hash ?
+                    SyncStatus::SYNCED : SyncStatus::MODIFIED;
                 $relatedMeterType = $meterTypes->find($registeredSparkMeterModel->mpm_meter_type_id);
             } else {
-                $meterModel['syncStatus'] = SyncStatus::NotRegisteredYet;
+                $meterModel['syncStatus'] = SyncStatus::NOT_REGISTERED_YET;
             }
             $meterModel['hash'] = $meterModelHash;
             $meterModel['relatedMeterType'] = $relatedMeterType;
@@ -218,13 +216,10 @@ class MeterModelService implements ISynchronizeService
         $meterModelSyncStatus = $sparkMeterModelsCollection->whereNotIn('syncStatus', 1)->count();
 
         if ($meterModelSyncStatus) {
-
             return ['result' => false, 'message' => 'meter models are not updated for site ' . $siteId];
-
         } else {
             return ['result' => true, 'message' => 'Records are updated'];
         }
-
     }
 
     public function createRelatedMeterModel($meterModel)

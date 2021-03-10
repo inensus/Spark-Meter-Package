@@ -1,11 +1,8 @@
 <?php
 
-
 namespace Inensus\SparkMeter;
 
-
 use App\Lib\IManufacturerAPI;
-
 use App\Misc\TransactionDataContainer;
 use App\Models\Meter\Meter;
 use App\Models\Meter\MeterParameter;
@@ -60,11 +57,15 @@ class SparkMeterApi implements IManufacturerAPI
 
         $meterParameter = $transactionContainer->meterParameter;
 
-        $smTariff = $this->smTariff->newQuery()->where('mpm_tariff_id',
-            $meterParameter->tariff()->first()->id)->first();
+        $smTariff = $this->smTariff->newQuery()->where(
+            'mpm_tariff_id',
+            $meterParameter->tariff()->first()->id
+        )->first();
         $tariff = $this->tariffService->singleSync($smTariff);
         $transactionContainer->chargedEnergy += $transactionContainer->amount / ($tariff->total_price / 100);
-        Log::critical('ENERGY TO BE CHARGED float ' . (float)$transactionContainer->chargedEnergy . ' Manufacturer => Spark');
+        Log::critical('ENERGY TO BE CHARGED float ' .
+            (float)$transactionContainer->chargedEnergy .
+            ' Manufacturer => Spark');
 
         if (config('app.debug')) {
             return [
@@ -72,13 +73,14 @@ class SparkMeterApi implements IManufacturerAPI
                 'energy' => (float)$transactionContainer->chargedEnergy,
             ];
         } else {
-
             $amount = $transactionContainer->totalAmount;
             $externalId = $transactionContainer->transaction->id;
 
             try {
-                $smCustomer = $this->smCustomer->newQuery()->with('site')->where('mpm_customer_id',
-                    $meterParameter->owner->id)->firstOrFail();
+                $smCustomer = $this->smCustomer->newQuery()->with('site')->where(
+                    'mpm_customer_id',
+                    $meterParameter->owner->id
+                )->firstOrFail();
             } catch (ModelNotFoundException $e) {
                 Log::critical('No Customer found for transaction data.', ['message' => $e->getMessage()]);
                 throw new ModelNotFoundException($e->getMessage());
@@ -105,14 +107,19 @@ class SparkMeterApi implements IManufacturerAPI
                 );
                 $result = json_decode((string)$request->getBody(), true);
             } catch (SparkAPIResponseException $e) {
-                Log::critical('Spark API Transaction Failed',
-                    ['Body :' => json_encode($postParams), 'message :' => $e->getMessage()]);
+                Log::critical(
+                    'Spark API Transaction Failed',
+                    ['Body :' => json_encode($postParams), 'message :' => $e->getMessage()]
+                );
             }
             if ($result['error'] !== false && $result['error'] !== null) {
                 throw new SparkAPIResponseException($result['error']);
             } else {
-                $transactionInformation = $this->sparkMeterApiRequests->getInfo($this->rootUrl,
-                    $result['transaction_id'], $smCustomer->site->site_id);
+                $transactionInformation = $this->sparkMeterApiRequests->getInfo(
+                    $this->rootUrl,
+                    $result['transaction_id'],
+                    $smCustomer->site->site_id
+                );
 
                 $transactionResult = [
                     'transaction_id' => $result['transaction_id'],
@@ -124,7 +131,9 @@ class SparkMeterApi implements IManufacturerAPI
 
                 $this->associateManufacturerTransaction($transactionContainer, $transactionResult);
             }
-            $token = $smCustomer->site->site_id . '-' . $transactionInformation['source'] . '-' . $smCustomer->customer_id;
+            $token = $smCustomer->site->site_id . '-' .
+                $transactionInformation['source'] . '-' .
+                $smCustomer->customer_id;
             return [
                 'token' => $token,
                 'energy' => $transactionContainer->chargedEnergy
@@ -145,40 +154,36 @@ class SparkMeterApi implements IManufacturerAPI
         $manufacturerTransaction = $this->smTransaction->newQuery()->create([
             'transaction_id' => $transactionResult['transaction_id'],
             'site_id' => $transactionResult['site_id'],
-            'customer_id' =>$transactionResult['customer_id'],
+            'customer_id' => $transactionResult['customer_id'],
             'status' => $transactionResult['status'],
-            'external_id' =>$transactionResult['external_id']
+            'external_id' => $transactionResult['external_id']
         ]);
 
-        $transaction = $this->transaction->newQuery()->with('originalAirtel', 'originalVodacom', 'orginalAgent',
-            'originalThirdParty')->find($transactionContainer->transaction->id);
+        $transaction = $this->transaction->newQuery()->with(
+            'originalAirtel',
+            'originalVodacom',
+            'orginalAgent',
+            'originalThirdParty'
+        )->find($transactionContainer->transaction->id);
 
         if ($transaction->originalAirtel) {
-
             $transaction->originalAirtel->associate($manufacturerTransaction);
             $transaction->originalAirtel->save();
-
         } else {
             if ($transaction->originalVodacom) {
-
                 $transaction->originalVodacom->associate($manufacturerTransaction);
                 $transaction->originalVodacom->save();
-
             } else {
                 if ($transaction->orginalAgent) {
-
                     $transaction->orginalAgent->associate($manufacturerTransaction);
                     $transaction->orginalAgent->save();
-
                 } else {
                     if ($transaction->originalThirdParty) {
-
                         $transaction->originalThirdParty->associate($manufacturerTransaction);
                         $transaction->originalThirdParty->save();
                     }
                 }
             }
         }
-
     }
 }

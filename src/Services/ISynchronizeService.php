@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Services;
-
 
 interface ISynchronizeService
 {
@@ -12,5 +10,5 @@ interface ISynchronizeService
 
     public function syncCheckBySite($siteId);
 
-    public function modelHasher($model,...$params):string;
+    public function modelHasher($model, ...$params): string;
 }

@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Http\Controllers;
 
 use Inensus\SparkMeter\Http\Requests\SmCustomerRequest;
@@ -8,7 +7,8 @@ use Inensus\SparkMeter\Http\Resources\SparkResource;
 use Inensus\SparkMeter\Models\SmCustomer;
 use Inensus\SparkMeter\Services\CustomerService;
 use Illuminate\Http\Request;
-class SmCustomerController  implements IBaseController
+
+class SmCustomerController implements IBaseController
 {
     private $customerService;
 
@@ -38,14 +38,14 @@ class SmCustomerController  implements IBaseController
     }
 
 
-    public function connection():SparkResource
+    public function connection(): SparkResource
     {
         return  new SparkResource($this->customerService->checkConnectionAvailability());
     }
 
-    public function update(SmCustomer $customer,SmCustomerRequest $request):SparkResource
+    public function update(SmCustomer $customer, SmCustomerRequest $request): SparkResource
     {
-        return new SparkResource($this->customerService->updateCustomerLowBalanceLimit($customer->id,$request->only([
+        return new SparkResource($this->customerService->updateCustomerLowBalanceLimit($customer->id, $request->only([
             'low_balance_limit'
         ])));
     }

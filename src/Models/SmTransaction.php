@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Models;
-
 
 use App\Models\Transaction\AgentTransaction;
 use App\Models\Transaction\AirtelTransaction;

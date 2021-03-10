@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Http\Requests;
-
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -29,7 +27,7 @@ class SmCredentialRequest extends FormRequest
     {
         return [
 
-            'api_key' =>['required',Rule::unique('sm_api_credentials')->ignore($this->id)],
+            'api_key' => ['required',Rule::unique('sm_api_credentials')->ignore($this->id)],
             'api_secret' => 'required',
 
         ];

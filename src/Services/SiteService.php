@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Services;
-
 
 use App\Models\City;
 use App\Models\Cluster;
@@ -17,7 +15,6 @@ use Inensus\SparkMeter\Http\Requests\SparkMeterApiRequests;
 use Inensus\SparkMeter\Models\SmSite;
 use Inensus\SparkMeter\Models\SyncStatus;
 
-
 class SiteService implements ISynchronizeService
 {
     private $site;
@@ -31,6 +28,7 @@ class SiteService implements ISynchronizeService
     private $geographicalInformation;
     private $smSyncSettingService;
     private $smSyncActionService;
+
     public function __construct(
         SmSite $site,
         SparkMeterApiRequests $sparkMeterApiRequests,
@@ -61,7 +59,6 @@ class SiteService implements ISynchronizeService
         $sites = $this->site->newQuery()->with('mpmMiniGrid')->paginate($perPage);
 
         foreach ($sites as $site) {
-
             if ($site->thundercloud_token) {
                 $data = [
                     'thundercloud_token' => $site->thundercloud_token
@@ -99,11 +96,13 @@ class SiteService implements ISynchronizeService
 
     public function updateGeographicalInformation($miniGridId)
     {
-        $geographicalInformation = $this->geographicalInformation->newQuery()->whereHasMorph('owner',
+        $geographicalInformation = $this->geographicalInformation->newQuery()->whereHasMorph(
+            'owner',
             [MiniGrid::class],
             static function ($q) use ($miniGridId) {
                 $q->where('id', $miniGridId);
-            })->first();
+            }
+        )->first();
         $points = explode(',', config('spark.geoLocation'));
         $latitude = strval(doubleval($points[0]) + (mt_rand(10, 10000) / 10000));
         $longitude = strval(doubleval($points[1]) + (mt_rand(10, 10000) / 10000));
@@ -136,8 +135,9 @@ class SiteService implements ISynchronizeService
 
 
             $site->is_authenticated = true;
-            $site->is_online = Carbon::parse($system['last_sync_date'])->toDateTimeString() > Carbon::now()->utc()->subMinutes(15)->toDateTimeString();
-
+            $site->is_online = Carbon::parse($system['last_sync_date'])
+                    ->toDateTimeString() > Carbon::now()->utc()
+                    ->subMinutes(15)->toDateTimeString();
         } catch (Exception $e) {
             $site->is_authenticated = false;
             $site->is_online = false;
@@ -178,8 +178,11 @@ class SiteService implements ISynchronizeService
             $syncCheck['data']->filter(function ($site) {
                 return $site['syncStatus'] === 2;
             })->each(function ($site) {
-                $miniGrid = is_null($site['relatedMiniGrid']) ? $this->creteRelatedMiniGrid($site) : $this->updateRelatedMiniGrid($site,
-                    $site['relatedMiniGrid']);
+                $miniGrid = is_null($site['relatedMiniGrid']) ?
+                    $this->creteRelatedMiniGrid($site) : $this->updateRelatedMiniGrid(
+                        $site,
+                        $site['relatedMiniGrid']
+                    );
                 $this->updateGeographicalInformation($miniGrid->id);
                 $site['registeredSparkSite']->update([
                     'site_id' => $site['id'],
@@ -193,7 +196,7 @@ class SiteService implements ISynchronizeService
         } catch (Exception $e) {
             $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, false);
             Log::critical('Spark sites sync failed.', ['Error :' => $e->getMessage()]);
-            throw  new Exception ($e->getMessage());
+            throw  new Exception($e->getMessage());
         }
     }
 
@@ -215,7 +218,7 @@ class SiteService implements ISynchronizeService
             if ($returnData) {
                 return ['result' => false];
             }
-            throw  new SparkAPIResponseException ($e->getMessage());
+            throw  new SparkAPIResponseException($e->getMessage());
         }
         $sitesCollection = collect($sites);
         $sparkSites = $this->site->newQuery()->get();
@@ -226,10 +229,11 @@ class SiteService implements ISynchronizeService
             $relatedMiniGrid = null;
             $siteHash = $this->modelHasher($site, null);
             if ($registeredSparkSite) {
-                $site['syncStatus'] = $siteHash === $registeredSparkSite->hash ? SyncStatus::Synced : SyncStatus::Modified;
+                $site['syncStatus'] = $siteHash === $registeredSparkSite->hash ?
+                    SyncStatus::SYNCED : SyncStatus::MODIFIED;
                 $relatedMiniGrid = $miniGrids->find($registeredSparkSite->mpm_mini_grid_id);
             } else {
-                $site['syncStatus'] = SyncStatus::NotRegisteredYet;
+                $site['syncStatus'] = SyncStatus::NOT_REGISTERED_YET;
             }
             $site['hash'] = $siteHash;
             $site['relatedMiniGrid'] = $relatedMiniGrid;
@@ -254,6 +258,6 @@ class SiteService implements ISynchronizeService
 
     public function syncCheckBySite($siteId)
     {
-     // This function is not using for sites
+        // This function is not using for sites
     }
 }

@@ -1,10 +1,9 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Console\Commands;
 
-
 use App\Models\Sms;
+use App\Sms\SmsTypes;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Inensus\SparkMeter\Exceptions\CronJobException;
@@ -14,7 +13,6 @@ use Inensus\SparkMeter\Services\SmSmsNotifiedCustomerService;
 use Inensus\SparkMeter\Services\SmSmsSettingService;
 use Inensus\SparkMeter\Services\TransactionService;
 use Inensus\SparkMeter\Sms\SparkSmsTypes;
-use Webpatser\Uuid\Uuid;
 use App\Jobs\SmsProcessor;
 
 class SparkMeterSmsNotifier extends Command
@@ -42,6 +40,7 @@ class SparkMeterSmsNotifier extends Command
         $this->smSmsNotifiedCustomerService = $smSmsNotifiedCustomerService;
         $this->smCustomerService = $smCustomerService;
     }
+
     public function handle()
     {
         $timeStart = microtime(true);
@@ -50,7 +49,6 @@ class SparkMeterSmsNotifier extends Command
         $startedAt = Carbon::now()->toIso8601ZuluString();
         $this->info('smsNotifier command started at ' . $startedAt);
         try {
-
             $smsSettings = $this->smsSettingsService->getSmsSettings();
             $transactionMin = $smsSettings->where('state', 'Transactions')->first()->not_send_elder_than_mins;
             $lowBalanceMin = $smsSettings->where('state', 'Low Balance Warning')->first()->not_send_elder_than_mins;
@@ -73,42 +71,43 @@ class SparkMeterSmsNotifier extends Command
 
     private function sendTransactionNotifySms($transactionMin, $smsNotifiedCustomers, $customers)
     {
-        $this->smTransactionService->getSparkTransactions($transactionMin)->each(function ($smTransaction) use
-        (
-            $transactionMin,
-            $smsNotifiedCustomers,
-            $customers
+        $this->smTransactionService->getSparkTransactions($transactionMin)
+            ->each(function ($smTransaction) use ( $transactionMin, $smsNotifiedCustomers, $customers
         ) {
-            $smsNotifiedCustomers = $smsNotifiedCustomers->where('notify_id',
-                $smTransaction->id)->where('customer_id', $smTransaction->customer_id)->first();
-            if ($smsNotifiedCustomers) {
+                $smsNotifiedCustomers = $smsNotifiedCustomers->where(
+                    'notify_id',
+                    $smTransaction->id
+                )->where('customer_id', $smTransaction->customer_id)->first();
+                if ($smsNotifiedCustomers) {
+                    return true;
+                }
+                $notifyCustomer = $customers->filter(function ($customer) use ($smTransaction) {
+                    return $customer->customer_id == $smTransaction->customer_id;
+                })->first();
+
+                if (!$notifyCustomer) {
+                    return true;
+                }
+
+                if (
+                    !$notifyCustomer->mpmPerson->addresses ||
+                    $notifyCustomer->mpmPerson->addresses[0]->phone === null ||
+                    $notifyCustomer->mpmPerson->addresses[0]->phone === ""
+                ) {
+                    return true;
+                }
+
+                SmsProcessor::dispatch(
+                    $smTransaction->thirdPartyTransaction->transaction,
+                    SmsTypes::TRANSACTION_CONFIRMATION
+                )->allOnConnection('redis')->onQueue(\config('services.queues.sms'));
+
+                $this->smSmsNotifiedCustomerService->createTransactionSmsNotify(
+                    $notifyCustomer->customer_id,
+                    $smTransaction->id
+                );
                 return true;
-            }
-            $notifyCustomer = $customers->filter(function ($customer) use ($smTransaction) {
-                return $customer->customer_id == $smTransaction->customer_id;
-            })->first();
-
-            if (!$notifyCustomer) {
-
-                return true;
-            }
-
-            if (!$notifyCustomer->mpmPerson->addresses || $notifyCustomer->mpmPerson->addresses[0]->phone === null ||
-                $notifyCustomer->mpmPerson->addresses[0]->phone === "") {
-                return true;
-            }
-
-            SmsProcessor::dispatch(
-                $steamaTransaction->thirdPartyTransaction->transaction,
-                SmsTypes::TRANSACTION_CONFIRMATION
-            )->allOnConnection('redis')->onQueue(\config('services.queues.sms'));
-
-
-            $this->smSmsNotifiedCustomerService->createTransactionSmsNotify($notifyCustomer->customer_id,
-                $smTransaction->id);
-            return true;
-        });
-
+            });
     }
 
     private function sendLowBalanceWarningNotifySms($customers, $smsNotifiedCustomers, $lowBalanceMin)
@@ -117,16 +116,20 @@ class SparkMeterSmsNotifier extends Command
             $smsNotifiedCustomers,
             $lowBalanceMin
         ) {
-            $notifiedCustomer = $smsNotifiedCustomers->where('notify_type','low_balance')->where('customer_id',
-                $customer->customer_id)->first();
+            $notifiedCustomer = $smsNotifiedCustomers->where('notify_type', 'low_balance')->where(
+                'customer_id',
+                $customer->customer_id
+            )->first();
             if ($notifiedCustomer) {
                 return true;
             }
-            if ($customer->credit_balance>$customer->low_balance_limit){
+            if ($customer->credit_balance > $customer->low_balance_limit) {
                 return true;
             }
-            if (!$customer->mpmPerson->addresses || $customer->mpmPerson->addresses[0]->phone === null ||
-                $customer->mpmPerson->addresses[0]->phone === "") {
+            if (
+                !$customer->mpmPerson->addresses || $customer->mpmPerson->addresses[0]->phone === null ||
+                $customer->mpmPerson->addresses[0]->phone === ""
+            ) {
                 return true;
             }
             SparkSmsProcessor::dispatch(
