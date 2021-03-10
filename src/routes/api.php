@@ -45,6 +45,13 @@ Route::group(['prefix' => 'spark-meters'], function () {
         Route::get('/', 'SmSettingController@index');
         Route::group(['prefix' => 'sms-setting'], function () {
             Route::put('/', 'SmSmsSettingController@update');
+            Route::group(['prefix' => 'sms-body'], static function () {
+                Route::get('/', 'SmSmsBodyController@index');
+                Route::put('/', 'SmSmsBodyController@update');
+            });
+            Route::group(['prefix' => 'sms-variable-default-value'], static function () {
+                Route::get('/', 'SmSmsVariableDefaultValueController@index');
+            });
         });
         Route::group(['prefix' => 'sync-setting'], function () {
             Route::put('/', 'SmSyncSettingController@update');
