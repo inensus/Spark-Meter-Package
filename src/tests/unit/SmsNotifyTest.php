@@ -248,7 +248,7 @@ class SmsNotifyTest extends TestCase
 
         //associate address with a person
         $address = Address::query()->make([
-            'phone' => '+905396398161',
+            'phone' => '+905494322161',
             'is_primary' => 1,
             'owner_type' => 'person'
         ]);
@@ -289,8 +289,8 @@ class SmsNotifyTest extends TestCase
 
         $transaction = Transaction::query()->make([
             'amount' => 1000,
-            'sender' => '05396398161',
-            'message' => $customer->meters[0]->serial_number,
+            'sender' => '905494322161',
+            'message' => $customer->meters[0]->meter->serial_number,
             'type' => 'energy',
             'created_at' => Carbon::now(),
             'updated_at' => Carbon::now(),
@@ -303,7 +303,7 @@ class SmsNotifyTest extends TestCase
     {
         $user = factory(User::class)->create();
         $address = Address::query()->make([
-            'phone' => '+905396398161',
+            'phone' => '+905494322161',
             'is_primary' => 1,
             'owner_type' => 'admin'
         ]);
@@ -316,7 +316,7 @@ class SmsNotifyTest extends TestCase
 
         $smsSetting = SmSetting::query()->make();
 
-        $smsTransaction = SmSetting::query()->create([
+        $smsTransaction = SmSmsSetting::query()->create([
             'state' => 'Transactions',
             'not_send_elder_than_mins' => 5,
         ]);
@@ -325,7 +325,7 @@ class SmsNotifyTest extends TestCase
         $smsSetting->save();
 
         $balanceSetting = SmSetting::query()->make();
-        $smsLowBalanceWarning = SmSetting::query()->create([
+        $smsLowBalanceWarning = SmSmsSetting::query()->create([
             'id' => 2,
             'state' => 'Low Balance Warning',
             'not_send_elder_than_mins' => 5,

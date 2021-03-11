@@ -87,7 +87,7 @@ class SparkSmsProcessor implements ShouldQueue
         if (!array_key_exists($this->smsType, $this->smsTypes)) {
             throw new SmsTypeNotFoundException('SmsType could not resolve.');
         }
-        $smsBodyService = resolve('Inensus\SparkMeter\Services\SparkSmsBodyService');
+        $smsBodyService = resolve('Inensus\SparkMeter\Services\SmSmsBodyService');
         $reflection = new \ReflectionClass($this->smsTypes[$this->smsType]);
 
         if (!$reflection->isSubclassOf(SparkSmsSender::class)) {

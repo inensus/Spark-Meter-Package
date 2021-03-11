@@ -1,8 +1,8 @@
 <?php
 
-namespace Inensus\SteamaMeter\Sms\Senders;
+namespace Inensus\SparkMeter\Sms\Senders;
 
-use Inensus\SparkMeter\Sms\Senders\SparkSmsSender;
+
 
 class LowBalanceLimitNotifier extends SparkSmsSender
 {
