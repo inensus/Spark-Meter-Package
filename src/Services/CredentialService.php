@@ -1,9 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Services;
-
-
 
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Log;
@@ -24,9 +21,9 @@ class CredentialService
         SmCredential $smCredential,
         OrganizationService $organizationService
     ) {
-        $this->sparkMeterApiRequests=$sparkMeterApiRequests;
+        $this->sparkMeterApiRequests = $sparkMeterApiRequests;
         $this->smCredential = $smCredential;
-        $this->organizationService=$organizationService;
+        $this->organizationService = $organizationService;
     }
 
     public function getCredentials()
@@ -60,7 +57,6 @@ class CredentialService
             } else {
                 $smCredentials->is_authenticated = null;
             }
-
         } catch (\Exception $exception) {
             Log::critical('Unknown exception while authenticating SparkMeter', ['reason' => $exception->getMessage()]);
             $smCredentials->is_authenticated = null;
@@ -68,5 +64,4 @@ class CredentialService
         $smCredentials->save();
         return $smCredentials->fresh();
     }
-
 }

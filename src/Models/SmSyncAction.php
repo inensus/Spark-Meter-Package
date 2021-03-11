@@ -1,10 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Models;
-
-
-
 
 class SmSyncAction extends BaseModel
 {

@@ -1,13 +1,12 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Http\Controllers;
 
 use Illuminate\Routing\Controller;
 use Inensus\SparkMeter\Http\Resources\SparkResource;
 use Inensus\SparkMeter\Services\SmSettingService;
 
-class SmSettingController  extends Controller
+class SmSettingController extends Controller
 {
     private $settingService;
 

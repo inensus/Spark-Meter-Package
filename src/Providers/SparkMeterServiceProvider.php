@@ -12,10 +12,15 @@ use Inensus\SparkMeter\Console\Commands\SparkMeterSmsNotifier;
 use Inensus\SparkMeter\Console\Commands\SparkMeterTransactionStatusCheck;
 use Illuminate\Support\Collection;
 use Illuminate\Filesystem\Filesystem;
-
+use App\Models\Transaction\Transaction;
+use App\Models\Meter\MeterParameter;
+use Inensus\SparkMeter\Http\Requests\SparkMeterApiRequests;
+use Inensus\SparkMeter\Models\SmCustomer;
 use Inensus\SparkMeter\Models\SmSmsSetting;
 use Inensus\SparkMeter\Models\SmSyncSetting;
+use Inensus\SparkMeter\Models\SmTariff;
 use Inensus\SparkMeter\Models\SmTransaction;
+use Inensus\SparkMeter\Services\TariffService;
 use Inensus\SparkMeter\SparkMeterApi;
 
 class SparkMeterServiceProvider extends ServiceProvider
@@ -37,7 +42,6 @@ class SparkMeterServiceProvider extends ServiceProvider
                 SparkMeterDataSynchronizer::class,
                 SparkMeterSmsNotifier::class
             ]);
-
         }
         $this->app->booted(function ($app) {
             $app->make(Schedule::class)->command('spark-meter:dataSync')->withoutOverlapping(50)
@@ -51,8 +55,8 @@ class SparkMeterServiceProvider extends ServiceProvider
                 'spark_transaction' => SmTransaction::class,
                 'sync_setting' => SmSyncSetting::class,
                 'sms_setting' => SmSmsSetting::class,
-            ]);
-
+            ]
+        );
     }
 
     public function register()
@@ -63,18 +67,33 @@ class SparkMeterServiceProvider extends ServiceProvider
         $this->app->register(EventServiceProvider::class);
         $this->app->register(ObserverServiceProvider::class);
 
-        $this->app->singleton('SparkMeterApi', static function ($app) {
-            return new SparkMeterApi(new Client());
+        $this->app->bind('SparkMeterApi', static function () {
+            $client = new Client();
+            $sparkMeterApiRequests = new SparkMeterApiRequests();
+            $tariffService = new TariffService();
+            $meterParameter = new MeterParameter();
+            $smCustomer = new SmCustomer();
+            $smTransaction = new SmTransaction();
+            $smTariff = new SmTariff();
+            $transaction = new Transaction();
+            return new SparkMeterApi(
+                $sparkMeterApiRequests,
+                $client,
+                $tariffService,
+                $meterParameter,
+                $smCustomer,
+                $smTransaction,
+                $smTariff,
+                $transaction
+            );
         });
-
     }
 
 
     public function publishVueFiles()
     {
         $this->publishes([
-            __DIR__ . '/../resources/assets' => resource_path('assets/js/plugins/spark-meter'
-            ),
+            __DIR__ . '/../resources/assets' => resource_path('assets/js/plugins/spark-meter'),
         ], 'vue-components');
     }
 
@@ -88,7 +107,8 @@ class SparkMeterServiceProvider extends ServiceProvider
     public function publishMigrations($filesystem)
     {
         $this->publishes([
-            __DIR__ . '/../../database/migrations/create_spark_tables.php.stub' => $this->getMigrationFileName($filesystem),
+            __DIR__ . '/../../database/migrations/create_spark_tables.php.stub'
+            => $this->getMigrationFileName($filesystem),
         ], 'migrations');
     }
 

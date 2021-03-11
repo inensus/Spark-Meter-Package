@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Http\Requests;
-
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -28,7 +26,7 @@ class SmCustomerRequest extends FormRequest
     {
         return [
 
-            'low_balance_limit' =>'required'
+            'low_balance_limit' => 'required'
 
         ];
     }

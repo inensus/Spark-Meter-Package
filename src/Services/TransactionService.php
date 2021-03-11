@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Services;
-
 
 use App\Models\Meter\MeterToken;
 use App\Models\Transaction\ThirdPartyTransaction;
@@ -21,7 +19,6 @@ use Inensus\SparkMeter\Models\SmOrganization;
 use Inensus\SparkMeter\Models\SmSite;
 use Inensus\SparkMeter\Models\SmTariff;
 use Inensus\SparkMeter\Models\SmTransaction;
-
 
 class TransactionService
 {
@@ -61,7 +58,6 @@ class TransactionService
         SmCustomer $smCustomer,
         SmSyncSettingService $smSyncSettingService,
         SmSyncActionService $smSyncActionService
-
     ) {
         $this->sparkMeterApiRequests = $sparkMeterApiRequests;
         $this->sparkOrganization = $sparkOrganization;
@@ -84,8 +80,11 @@ class TransactionService
     public function updateTransactionStatus($smTransaction)
     {
         try {
-            $smTransactionResult = $this->sparkMeterApiRequests->getInfo($this->rootUrl, $smTransaction->transaction_id,
-                $smTransaction->site_id);
+            $smTransactionResult = $this->sparkMeterApiRequests->getInfo(
+                $this->rootUrl,
+                $smTransaction->transaction_id,
+                $smTransaction->site_id
+            );
             $smStatus = $smTransactionResult['transaction']['status'];
         } catch (Exception $e) {
             $smStatus = $e->getMessage();
@@ -106,11 +105,12 @@ class TransactionService
                 $status = 1;
         }
 
-        $transaction = $this->transaction->newQuery()->whereHasMorph('originalTransaction',
-            '*')->find($smTransaction['external_id']);
+        $transaction = $this->transaction->newQuery()->whereHasMorph(
+            'originalTransaction',
+            '*'
+        )->find($smTransaction['external_id']);
 
         if ($transaction && $transaction->originalAirtel) {
-
             $transaction->originalAirtel->update([
                 'status' => $status
             ]);
@@ -136,40 +136,37 @@ class TransactionService
         $smTransaction->update([
             'status' => $smStatus
         ]);
-
-
     }
 
     public function sync()
     {
         $synSetting = $this->smSyncSettingService->getSyncSettingsByActionName('Transactions');
         $syncAction = $this->smSyncActionService->getSyncActionBySynSettingId($synSetting->id);
-        $syncCheck=[];
+        $syncCheck = [];
         //TODO find a way for variety of error handling acts.
         try {
             $syncCheck = $this->syncCheck();
         } catch (CredentialsNotFoundException $exception) {
             Log::warning($exception->getMessage());
-
         } catch (CredentialsNotUpToDateException $exception) {
             Log::warning($exception->getMessage());
-
         } catch (SitesNotUpToDateException $exception) {
             Log::warning($exception->getMessage());
-
         } catch (NoOnlineSiteRecordException $exception) {
             Log::warning($exception->getMessage());
-
         }
-        $lastCreatedTransaction = $this->sparkTransaction->newQuery()->latest('created_at')->orderBy('id',
-            'desc')->first();
+        $lastCreatedTransaction = $this->sparkTransaction->newQuery()->latest('created_at')->orderBy(
+            'id',
+            'desc'
+        )->first();
         $organization = $this->sparkOrganization->newQuery()->first();
         $koiosUrl = '/organizations/' . $organization->organization_id . '/data/historical';
         $params = [
             "filters" => [
                 "entity_types" => ["transactions"],
                 "date_range" => [
-                    "from" => $lastCreatedTransaction ? $lastCreatedTransaction->timestamp : Carbon::now()->subYears(10)->toIso8601String()
+                    "from" => $lastCreatedTransaction ?
+                        $lastCreatedTransaction->timestamp : Carbon::now()->subYears(10)->toIso8601String()
                 ]
             ],
             "cursor" => null
@@ -182,19 +179,17 @@ class TransactionService
         }
         $params['cursor'] = $result['cursor'];
         $transactions = $result['results'];
-        $count=$result['count'];
+        $count = $result['count'];
         $sparkCustomers = $this->smCustomer->newQuery()->with([
             'mpmPerson.meters.meter',
             'mpmPerson.addresses'
         ])->get();
         $sparkTariffs = $this->sparkTariff->newQuery()->get();
         do {
-            if ($count===1){
+            if ($count === 1) {
                 break;
             }
-            dump("kemo");
-            dump($syncCheck);
-            if (!count($syncCheck)){
+            if (!count($syncCheck)) {
                 break;
             }
             collect($transactions)->filter(function ($transaction) {
@@ -219,8 +214,10 @@ class TransactionService
                     default:
                         $status = 1;
                 }
-                $transactionRecord = $this->sparkTransaction->newQuery()->where('transaction_id',
-                    $transaction['transaction_id'])->first();
+                $transactionRecord = $this->sparkTransaction->newQuery()->where(
+                    'transaction_id',
+                    $transaction['transaction_id']
+                )->first();
 
                 if (!$transactionRecord) {
                     if (!array_key_exists('customer', $transaction['to'])) {
@@ -228,32 +225,50 @@ class TransactionService
                     }
                     $sparkTransaction = $this->createSparkTransaction($transaction);
                     if (!$transaction['reference_id']) {
-                        $thirdPartyTransaction = $this->createThirdPartyTransaction($transaction,
-                            $sparkTransaction, $status);
+                        $thirdPartyTransaction = $this->createThirdPartyTransaction(
+                            $transaction,
+                            $sparkTransaction,
+                            $status
+                        );
 
-                        $sparkCustomer = $sparkCustomers->firstWhere('customer_id',
-                            $sparkTransaction->customer_id);
+                        $sparkCustomer = $sparkCustomers->firstWhere(
+                            'customer_id',
+                            $sparkTransaction->customer_id
+                        );
 
                         if (!$sparkCustomer) {
                             return true;
                         }
                         $meterParameter = $sparkCustomer->mpmPerson->meters[0];
-                        $mainTransaction = $this->createTransaction($transaction,
-                            $thirdPartyTransaction, $meterParameter);
-                        $sparkTariff = $sparkTariffs->firstWhere('mpm_tariff_id',
-                            $meterParameter->tariff()->first()->id);
-                        $token = $this->createToken($sparkTariff, $mainTransaction,
-                            $transaction, $sparkTransaction, $meterParameter);
+                        $mainTransaction = $this->createTransaction(
+                            $transaction,
+                            $thirdPartyTransaction,
+                            $meterParameter
+                        );
+                        $sparkTariff = $sparkTariffs->firstWhere(
+                            'mpm_tariff_id',
+                            $meterParameter->tariff()->first()->id
+                        );
+                        $token = $this->createToken(
+                            $sparkTariff,
+                            $mainTransaction,
+                            $transaction,
+                            $sparkTransaction,
+                            $meterParameter
+                        );
                         $this->createPayment($meterParameter, $mainTransaction, $token);
                     }
-
                 } else {
                     $transactionRecord->update([
                         'status' => $transaction['state'],
-                        'timestamp'=>$transaction['state'] ==="processed" ? $transaction['processed_timestamp'] : ( $transaction['state'] ==="reversed" ? $transaction['reversed_timestamp'] : $transaction['errored_timestamp'])
+                        'timestamp' => $transaction['state'] === "processed" ?
+                            $transaction['processed_timestamp'] : ($transaction['state'] === "reversed" ?
+                                $transaction['reversed_timestamp'] : $transaction['errored_timestamp'])
                     ]);
-                    $thirdPartyTransaction = $this->thirdPartyTransaction->newQuery()->where('transaction_id',
-                        $transaction['transaction_id'])->first();
+                    $thirdPartyTransaction = $this->thirdPartyTransaction->newQuery()->where(
+                        'transaction_id',
+                        $transaction['transaction_id']
+                    )->first();
                     if ($thirdPartyTransaction) {
                         $thirdPartyTransaction->update([
                             'status' => $status,
@@ -267,14 +282,13 @@ class TransactionService
             try {
                 $result = $this->sparkMeterApiRequests->postToKoios($koiosUrl, $params);
                 $params['cursor'] = $result['cursor'];
-                $count=$result['count'];
+                $count = $result['count'];
                 $transactions = $result['results'];
             } catch (SparkAPIResponseException $exception) {
                 $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, false);
                 throw new SparkAPIResponseException($exception->getMessage());
             }
-
-        } while ($params['cursor'] && $count>0);
+        } while ($params['cursor'] && $count > 0);
         $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, true);
     }
 
@@ -286,7 +300,6 @@ class TransactionService
         if (!$credentials) {
             $message = 'No Credentials record found.';
             throw  new CredentialsNotFoundException($message);
-
         }
         if ($credentials->is_authenticated == 0) {
             $message = 'Credentials records are not up to date.';
@@ -297,19 +310,19 @@ class TransactionService
         if (!$siteSynchronized['result']) {
             $message = 'Site records are not up to date.';
             throw  new SitesNotUpToDateException($message);
-
         }
 
         if (!$sparkSites->count()) {
             $message = 'No online Site record found.';
             throw  new NoOnlineSiteRecordException($message);
-
         }
         return $sparkSites->filter(function ($site) {
             $meterModelSynchronized = $this->sparkMeterModelService->syncCheckBySite($site->site_id);
             $tariffSynchronized = $this->sparkTariffService->syncCheckBySite($site->site_id);
             $customerSynchronized = $this->sparkCustomerService->syncCheckBySite($site->site_id);
-            return $meterModelSynchronized['result'] && $tariffSynchronized['result'] && $customerSynchronized['result'];
+            return $meterModelSynchronized['result'] &&
+                $tariffSynchronized['result'] &&
+                $customerSynchronized['result'];
         });
     }
 
@@ -320,18 +333,22 @@ class TransactionService
             'customer_id' => $transaction['to']['customer']['id'],
             'transaction_id' => $transaction['transaction_id'],
             'status' => $transaction['state'],
-            'timestamp'=>$transaction['created'],
+            'timestamp' => $transaction['created'],
             'external_id' => $transaction['external_id'],
         ]);
     }
+
     public function getSparkTransactions($transactionMin)
     {
-        $transactions= $this->sparkTransaction->newQuery()->with(['thirdPartyTransaction.transaction'])->where('status','processed')->get();
-        return $transactions->filter(function ($transaction) use ($transactionMin){
+        $transactions = $this->sparkTransaction->newQuery()->with(['thirdPartyTransaction.transaction'])->where(
+            'status',
+            'processed'
+        )->get();
+        return $transactions->filter(function ($transaction) use ($transactionMin) {
             return Carbon::parse($transaction->timestamp) >= Carbon::now()->subMinutes($transactionMin);
         });
-
     }
+
     private function createThirdPartyTransaction($transaction, $sparkTransaction, $status)
     {
         $thirdPartyTransaction = $this->thirdPartyTransaction->newQuery()->make([

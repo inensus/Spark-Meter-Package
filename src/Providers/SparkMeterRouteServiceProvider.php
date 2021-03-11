@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Providers;
 
 use Illuminate\Support\Facades\Route;
@@ -25,6 +24,6 @@ class SparkMeterRouteServiceProvider extends ServiceProvider
         Route::prefix('api')
             ->middleware('api')
             ->namespace($this->namespace)
-            ->group(__DIR__.'/../routes/api.php');
+            ->group(__DIR__ . '/../routes/api.php');
     }
 }

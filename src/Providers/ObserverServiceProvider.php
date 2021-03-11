@@ -1,5 +1,7 @@
 <?php
+
 namespace Inensus\SparkMeter\Providers;
+
 use App\Models\GeographicalInformation;
 use App\Models\Meter\MeterTariff;
 use App\Models\Person\Person;
@@ -8,7 +10,7 @@ use Inensus\SparkMeter\Observers\GeographicalInformationObserver;
 use Inensus\SparkMeter\Observers\MeterTariffObserver;
 use Inensus\SparkMeter\Observers\PersonObserver;
 
-class ObserverServiceProvider  extends ServiceProvider
+class ObserverServiceProvider extends ServiceProvider
 {
 
     /**
@@ -22,6 +24,5 @@ class ObserverServiceProvider  extends ServiceProvider
         Person::observe(PersonObserver::class);
         GeographicalInformation::observe(GeographicalInformationObserver::class);
         MeterTariff::observe(MeterTariffObserver::class);
-
     }
 }

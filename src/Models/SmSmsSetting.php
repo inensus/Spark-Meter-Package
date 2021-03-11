@@ -1,10 +1,8 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Models;
 
-
-class SmSmsSetting  extends BaseModel
+class SmSmsSetting extends BaseModel
 {
     protected $table = 'sm_sms_settings';
 

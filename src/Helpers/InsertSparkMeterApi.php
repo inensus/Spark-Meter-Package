@@ -4,7 +4,6 @@ namespace Inensus\SparkMeter\Helpers;
 
 use App\Models\Manufacturer;
 
-
 class InsertSparkMeterApi
 {
 
@@ -27,6 +26,4 @@ class InsertSparkMeterApi
             ]);
         }
     }
-
-
 }

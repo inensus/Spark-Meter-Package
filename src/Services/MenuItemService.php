@@ -1,6 +1,5 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Services;
 
 use App\Models\MenuItems;
@@ -65,6 +64,4 @@ class MenuItemService
         array_push($subMenuItems, $subMenuItem6);
         return ['menuItem' => $menuItem, 'subMenuItems' => $subMenuItems];
     }
-
-
 }

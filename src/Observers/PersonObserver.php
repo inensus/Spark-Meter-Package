@@ -1,15 +1,11 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Observers;
 
-
 use App\Models\Person\Person;
-
 use Inensus\SparkMeter\Helpers\SmTableEncryption;
 use Inensus\SparkMeter\Services\CustomerService;
 use Inensus\SparkMeter\Models\SmCustomer;
-
 
 class PersonObserver
 {
@@ -21,35 +17,40 @@ class PersonObserver
         CustomerService $customerService,
         SmTableEncryption $smTableEncryption,
         Person $person,
-        SmCustomer $smCustomer) {
+        SmCustomer $smCustomer
+    ) {
         $this->customerService = $customerService;
-        $this->smTableEncryption=$smTableEncryption;
-        $this->person=$person;
-        $this->smCustomer=$smCustomer;
+        $this->smTableEncryption = $smTableEncryption;
+        $this->person = $person;
+        $this->smCustomer = $smCustomer;
     }
 
     public function updated(Person $person)
     {
-        $smCustomer = $this->smCustomer->newQuery()->with('site')->where('mpm_customer_id',$person->id)->first();
+        $smCustomer = $this->smCustomer->newQuery()->with('site')
+            ->where('mpm_customer_id', $person->id)->first();
 
-        if ($smCustomer){
-            $personId=$person->id;
-            $customer= $this->person->newQuery()->with(['meters.tariff','meters.geo', 'meters.meter','addresses'=>function($q) {return $q->where('is_primary',1);} ])->where('id',$personId)->first();
+        if ($smCustomer) {
+            $personId = $person->id;
+            $customer = $this->person->newQuery()
+                ->with(['meters.tariff','meters.geo', 'meters.meter','addresses' => function ($q) {
+                    return $q->where('is_primary', 1);
+                } ])->where('id', $personId)->first();
 
-            $siteId=$smCustomer->site->site_id;
+            $siteId = $smCustomer->site->site_id;
 
             $customerData = [
-                'id'=>$smCustomer->customer_id,
-                'active'=>true,
+                'id' => $smCustomer->customer_id,
+                'active' => true,
                 'meter_tariff_name' => $customer->meters[0]->tariff->name,
                 'name' => $person->name . ' ' . $person->surname,
                 'code' => strval($person->id),
                 'phone_number' => $customer->addresses[0]->phone,
-                'coords'=>$customer->meters[0]->geo->points,
-                'address'=>$customer->addresses[0]->street
+                'coords' => $customer->meters[0]->geo->points,
+                'address' => $customer->addresses[0]->street
             ];
 
-            $this->customerService->updateSparkCustomerInfo($customerData,$siteId);
+            $this->customerService->updateSparkCustomerInfo($customerData, $siteId);
 
             $smModelHash = $this->smTableEncryption->makeHash([
                 $person->name . ' ' . $person->surname,
@@ -61,7 +62,7 @@ class PersonObserver
             ]);
 
             $smCustomer->update([
-                'hash'=>$smModelHash
+                'hash' => $smModelHash
             ]);
         }
     }

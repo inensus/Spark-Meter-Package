@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Services;
-
 
 use App\Http\Services\AddressService;
 use App\Models\Address\Address;
@@ -17,7 +15,6 @@ use App\Models\Meter\MeterParameter;
 use Carbon\Carbon;
 use Exception;
 use App\Models\Person\Person;
-
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -29,7 +26,6 @@ use Inensus\SparkMeter\Models\SmMeterModel;
 use Inensus\SparkMeter\Models\SmSite;
 use Inensus\SparkMeter\Models\SmTariff;
 use Inensus\SparkMeter\Models\SyncStatus;
-
 
 class CustomerService implements ISynchronizeService
 {
@@ -51,6 +47,7 @@ class CustomerService implements ISynchronizeService
     private $smSyncSettingService;
     private $smSyncActionService;
     private $smSmsNotifiedCustomerService;
+
     public function __construct(
         SparkMeterApiRequests $sparkMeterApiRequests,
         SmTableEncryption $smTableEncryption,
@@ -134,7 +131,6 @@ class CustomerService implements ISynchronizeService
                 'hash' => $smCustomerHash
             ]);
         }
-
     }
 
     public function getSmCustomers($request)
@@ -176,9 +172,8 @@ class CustomerService implements ISynchronizeService
             return $sparkCustomerId['customer_id'];
         } catch (Exception $e) {
             Log::critical('updating customer info from spark api failed.', ['Error :' => $e->getMessage()]);
-            throw  new Exception ($e->getMessage());
+            throw  new Exception($e->getMessage());
         }
-
     }
 
     public function createRelatedPerson($customer, $site_id)
@@ -201,7 +196,6 @@ class CustomerService implements ISynchronizeService
                 $person = $this->person->newQuery()->whereHas('meters', static function ($q) use ($meterParameter) {
                     return $q->where('id', $meterParameter->id);
                 })->first();
-
             }
             if ($person === null) {
                 $data = [
@@ -216,8 +210,10 @@ class CustomerService implements ISynchronizeService
             $manufacturer = $this->manufacturer->newQuery()->where('name', 'Spark Meters')->firstOrFail();
             $meter->manufacturer()->associate($manufacturer);
             $meterModelName = explode("-", $customer['meters'][0]['serial'])[0];
-            $smModel = $this->smMeterModel->newQuery()->with('meterType')->where('model_name',
-                $meterModelName)->firstOrFail();
+            $smModel = $this->smMeterModel->newQuery()->with('meterType')->where(
+                'model_name',
+                $meterModelName
+            )->firstOrFail();
             $meter->meterType()->associate($smModel->meterType);
             $meter->updated_at = date('Y-m-d h:i:s');
             $meter->save();
@@ -232,10 +228,12 @@ class CustomerService implements ISynchronizeService
             $meterParameter->owner()->associate($person);
             $currentTariffName = $customer['meters'][0]['current_tariff_name'];
 
-            $smTariff = $this->smTariff->newQuery()->with('mpmTariff')->whereHas('mpmTariff',
+            $smTariff = $this->smTariff->newQuery()->with('mpmTariff')->whereHas(
+                'mpmTariff',
                 function ($q) use ($currentTariffName) {
                     return $q->where('name', $currentTariffName);
-                })->first();
+                }
+            )->first();
             if ($smTariff) {
                 $meterParameter->tariff()->associate($smTariff->mpmTariff);
             }
@@ -258,7 +256,6 @@ class CustomerService implements ISynchronizeService
             DB::commit();
             return $person->id;
         } catch (Exception $e) {
-
             DB::rollBack();
             Log::critical('Error while synchronizing spark customers', ['message' => $e->getMessage()]);
             throw  new Exception($e->getMessage());
@@ -300,10 +297,12 @@ class CustomerService implements ISynchronizeService
                 'serial_number' => $sparkCustomerMeterSerial
             ]);
         }
-        $smTariff = $this->smTariff->newQuery()->with(['mpmTariff'])->whereHas('mpmTariff',
+        $smTariff = $this->smTariff->newQuery()->with(['mpmTariff'])->whereHas(
+            'mpmTariff',
             function ($q) use ($currentTariffName) {
                 return $q->where('name', $currentTariffName);
-            })->first();
+            }
+        )->first();
 
         if ($smTariff) {
             $meterParameters->tariff()->associate($smTariff->mpmTariff);
@@ -311,7 +310,8 @@ class CustomerService implements ISynchronizeService
         }
         $geo = $meterParameters->geo()->first();
         if ($geo && array_key_exists('coords', $customer['meters'][0])) {
-            $geo->points = $customer['meters'][0]['coords'] === "" ? config('spark.geoLocation') : $customer['meters'][0]['coords'];
+            $geo->points = $customer['meters'][0]['coords'] === "" ?
+                config('spark.geoLocation') : $customer['meters'][0]['coords'];
             $geo->update();
         }
         $person->update([
@@ -360,7 +360,6 @@ class CustomerService implements ISynchronizeService
         } catch (SparkAPIResponseException $e) {
             throw new SparkAPIResponseException($e->getMessage());
         }
-
     }
 
     public function updateCustomerLowBalanceLimit($customerId, $data)
@@ -389,7 +388,6 @@ class CustomerService implements ISynchronizeService
             })->orWhereHas('mpmPerson', function ($q) use ($searchTerm) {
                 $q->where('name', 'LIKE', '%' . $searchTerm . '%');
             })->get();
-
     }
 
     public function getLowBalancedCustomers()
@@ -426,21 +424,26 @@ class CustomerService implements ISynchronizeService
                         'credit_balance' => $customer['credit_balance'],
                         'hash' => $customer['hash']
                     ]);
-
                 });
                 $customers['site_data']->filter(function ($customer) {
                     return $customer['syncStatus'] === 2;
                 })->each(function ($customer) use ($customers) {
-                    is_null($customer['relatedPerson']) ? $this->createRelatedPerson($customer,
-                        $customers['site_id']) : $this->updateRelatedPerson($customer, $customer['relatedPerson'],
-                        $customers['site_id']);
+                    is_null($customer['relatedPerson']) ? $this->createRelatedPerson(
+                        $customer,
+                        $customers['site_id']
+                    ) : $this->updateRelatedPerson(
+                        $customer,
+                        $customer['relatedPerson'],
+                        $customers['site_id']
+                    );
 
                     $customer['registeredSparkCustomer']->update([
                         'hash' => $customer['hash'],
                         'site_id' => $customers['site_id'],
                         'credit_balance' => $customer['credit_balance'],
                     ]);
-                    $this->smSmsNotifiedCustomerService->removeLowBalancedCustomer($customer['registeredSparkCustomer']);
+                    $this->smSmsNotifiedCustomerService
+                        ->removeLowBalancedCustomer($customer['registeredSparkCustomer']);
                 });
             });
             $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, true);
@@ -448,13 +451,11 @@ class CustomerService implements ISynchronizeService
                 'mpmPerson',
                 'site.mpmMiniGrid'
             ])->paginate(config('spark.paginate'));
-
         } catch (Exception $e) {
             $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, false);
             Log::critical('Spark customers sync failed.', ['Error :' => $e->getMessage()]);
-            throw  new Exception ($e->getMessage());
+            throw  new Exception($e->getMessage());
         }
-
     }
 
     public function syncCheck($returnData = false)
@@ -468,10 +469,12 @@ class CustomerService implements ISynchronizeService
             } catch (SparkAPIResponseException $e) {
                 Log::critical('Spark meter customers sync-check failed.', ['Error :' => $e->getMessage()]);
                 if ($returnData) {
-                    array_push($returnArray,
-                        ['result' => false]);
+                    array_push(
+                        $returnArray,
+                        ['result' => false]
+                    );
                 }
-                throw  new Exception ($e->getMessage());
+                throw  new Exception($e->getMessage());
             }
 
             $sparkCustomersCollection = collect($sparkCustomers['customers'])->filter(function ($customer) {
@@ -487,10 +490,11 @@ class CustomerService implements ISynchronizeService
                 $phone = $customer['phone_number'] == null ? 'NA' : $customer['phone_number'];
                 $customerHash = $this->modelHasher($customer, $phone);
                 if ($registeredSparkCustomer) {
-                    $customer['syncStatus'] = $customerHash === $registeredSparkCustomer->hash ? SyncStatus::Synced : SyncStatus::Modified;
+                    $customer['syncStatus'] = $customerHash === $registeredSparkCustomer->hash ?
+                        SyncStatus::SYNCED : SyncStatus::MODIFIED;
                     $relatedPerson = $people->find($registeredSparkCustomer->mpm_customer_id);
                 } else {
-                    $customer['syncStatus'] = SyncStatus::NotRegisteredYet;
+                    $customer['syncStatus'] = SyncStatus::NOT_REGISTERED_YET;
                 }
                 $customer['hash'] = $customerHash;
                 $customer['relatedPerson'] = $relatedPerson;
@@ -500,13 +504,11 @@ class CustomerService implements ISynchronizeService
             $customerSyncStatus = $sparkCustomersCollection->whereNotIn('syncStatus', 1)->count();
 
             if ($customerSyncStatus) {
-
                 $returnData ? array_push($returnArray, [
                     'site_id' => $site->site_id,
                     'site_data' => $sparkCustomersCollection,
                     'result' => false
                 ]) : array_push($returnArray, ['result' => false]);
-
             } else {
                 $returnData ? array_push($returnArray, [
                     'site_id' => $site->site_id,
@@ -514,11 +516,8 @@ class CustomerService implements ISynchronizeService
                     'result' => true
                 ]) : array_push($returnArray, ['result' => true]);
             }
-
-
         }
         return $returnArray;
-
     }
 
     public function modelHasher($model, ...$params): string
@@ -532,25 +531,23 @@ class CustomerService implements ISynchronizeService
 
         ]);
     }
-    public function getSparkCustomersWithAddress($lowBalanceMin)
+
+    public function getSparkCustomersWithAddress()
     {
         return $this->smCustomer->newQuery()->with([
             'mpmPerson.addresses'
         ])->whereHas('mpmPerson.addresses', function ($q) {
             return $q->where('is_primary', 1);
-        })->where(
-            'updated_at',
-            '>=',
-            Carbon::now()->subMinutes($lowBalanceMin)
-        )->get();
+        })->get();
     }
+
     public function syncCheckBySite($siteId)
     {
         try {
             $sparkCustomers = $this->sparkMeterApiRequests->get('/customers', $siteId);
         } catch (SparkAPIResponseException $e) {
             Log::critical('Spark meter customers sync-check-by-site failed.', ['Error :' => $e->getMessage()]);
-            throw  new SparkAPIResponseException ($e->getMessage());
+            throw  new SparkAPIResponseException($e->getMessage());
         }
 
         $sparkCustomersCollection = collect($sparkCustomers['customers'])->filter(function ($customer) {
@@ -566,10 +563,11 @@ class CustomerService implements ISynchronizeService
             $phone = $customer['phone_number'] == null ? 'NA' : $customer['phone_number'];
             $customerHash = $this->modelHasher($customer, $phone);
             if ($registeredSparkCustomer) {
-                $customer['syncStatus'] = $customerHash === $registeredSparkCustomer->hash ? SyncStatus::Synced : SyncStatus::Modified;
+                $customer['syncStatus'] = $customerHash === $registeredSparkCustomer->hash ?
+                    SyncStatus::SYNCED : SyncStatus::MODIFIED;
                 $relatedPerson = $people->find($registeredSparkCustomer->mpm_customer_id);
             } else {
-                $customer['syncStatus'] = SyncStatus::NotRegisteredYet;
+                $customer['syncStatus'] = SyncStatus::NOT_REGISTERED_YET;
             }
             $customer['hash'] = $customerHash;
             $customer['relatedPerson'] = $relatedPerson;
@@ -582,6 +580,5 @@ class CustomerService implements ISynchronizeService
         } else {
             return ['result' => true, 'message' => 'Records are updated'];
         }
-
     }
 }

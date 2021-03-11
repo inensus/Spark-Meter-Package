@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Http\Controllers;
-
 
 use Inensus\SparkMeter\Http\Requests\SmSiteRequest;
 use Inensus\SparkMeter\Http\Resources\SparkResource;
@@ -40,7 +38,7 @@ class SmSiteController implements IBaseController
     {
         return $this->siteService->getSmSitesCount();
     }
-    public function location():SparkResource
+    public function location(): SparkResource
     {
         return  new SparkResource($this->siteService->checkLocationAvailability());
     }

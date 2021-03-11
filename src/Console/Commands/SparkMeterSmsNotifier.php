@@ -1,20 +1,19 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Console\Commands;
 
-
 use App\Models\Sms;
+use App\Sms\SmsTypes;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Inensus\SparkMeter\Exceptions\CronJobException;
-use Inensus\SparkMeter\Helpers\SmsBodyGenerator;
+use Inensus\SparkMeter\Jobs\SparkSmsProcessor;
 use Inensus\SparkMeter\Services\CustomerService;
 use Inensus\SparkMeter\Services\SmSmsNotifiedCustomerService;
 use Inensus\SparkMeter\Services\SmSmsSettingService;
 use Inensus\SparkMeter\Services\TransactionService;
-use Webpatser\Uuid\Uuid;
-
+use Inensus\SparkMeter\Sms\SparkSmsTypes;
+use App\Jobs\SmsProcessor;
 
 class SparkMeterSmsNotifier extends Command
 {
@@ -26,15 +25,13 @@ class SparkMeterSmsNotifier extends Command
     private $smTransactionService;
     private $smSmsNotifiedCustomerService;
     private $smCustomerService;
-    private $smsBodyGenerator;
 
     public function __construct(
         SmSmsSettingService $smsSettingService,
         Sms $sms,
         TransactionService $smTransactionsService,
         SmSmsNotifiedCustomerService $smSmsNotifiedCustomerService,
-        CustomerService $smCustomerService,
-        SmsBodyGenerator $smsBodyGenerator
+        CustomerService $smCustomerService
     ) {
         parent::__construct();
         $this->smsSettingsService = $smsSettingService;
@@ -42,8 +39,8 @@ class SparkMeterSmsNotifier extends Command
         $this->smTransactionService = $smTransactionsService;
         $this->smSmsNotifiedCustomerService = $smSmsNotifiedCustomerService;
         $this->smCustomerService = $smCustomerService;
-        $this->smsBodyGenerator = $smsBodyGenerator;
     }
+
     public function handle()
     {
         $timeStart = microtime(true);
@@ -52,14 +49,17 @@ class SparkMeterSmsNotifier extends Command
         $startedAt = Carbon::now()->toIso8601ZuluString();
         $this->info('smsNotifier command started at ' . $startedAt);
         try {
-
             $smsSettings = $this->smsSettingsService->getSmsSettings();
             $transactionMin = $smsSettings->where('state', 'Transactions')->first()->not_send_elder_than_mins;
             $lowBalanceMin = $smsSettings->where('state', 'Low Balance Warning')->first()->not_send_elder_than_mins;
             $smsNotifiedCustomers = $this->smSmsNotifiedCustomerService->getSmsNotifiedCustomers();
-            $customers = $this->smCustomerService->getSparkCustomersWithAddress($lowBalanceMin);
+            $customers = $this->smCustomerService->getSparkCustomersWithAddress();
             $this->sendTransactionNotifySms($transactionMin, $smsNotifiedCustomers, $customers);
-            $this->sendLowBalanceWarningNotifySms($customers, $smsNotifiedCustomers, $lowBalanceMin);
+            $this->sendLowBalanceWarningNotifySms($customers->where(
+                'updated_at',
+                '>=',
+                Carbon::now()->subMinutes($lowBalanceMin)
+            )->get(), $smsNotifiedCustomers, $lowBalanceMin);
         } catch (CronJobException $e) {
             $this->warn('dataSync command is failed. message => ' . $e->getMessage());
         }
@@ -71,46 +71,43 @@ class SparkMeterSmsNotifier extends Command
 
     private function sendTransactionNotifySms($transactionMin, $smsNotifiedCustomers, $customers)
     {
-        $this->smTransactionService->getSparkTransactions($transactionMin)->each(function ($smTransaction) use
-        (
-            $transactionMin,
-            $smsNotifiedCustomers,
-            $customers
+        $this->smTransactionService->getSparkTransactions($transactionMin)
+            ->each(function ($smTransaction) use ( $transactionMin, $smsNotifiedCustomers, $customers
         ) {
-            $smsNotifiedCustomers = $smsNotifiedCustomers->where('notify_id',
-                $smTransaction->id)->where('customer_id', $smTransaction->customer_id)->first();
-            if ($smsNotifiedCustomers) {
-                return true;
-            }
-            $notifyCustomer = $customers->filter(function ($customer) use ($smTransaction) {
-                return $customer->customer_id == $smTransaction->customer_id;
-            })->first();
+                $smsNotifiedCustomers = $smsNotifiedCustomers->where(
+                    'notify_id',
+                    $smTransaction->id
+                )->where('customer_id', $smTransaction->customer_id)->first();
+                if ($smsNotifiedCustomers) {
+                    return true;
+                }
+                $notifyCustomer = $customers->filter(function ($customer) use ($smTransaction) {
+                    return $customer->customer_id == $smTransaction->customer_id;
+                })->first();
 
-            if (!$notifyCustomer) {
+                if (!$notifyCustomer) {
+                    return true;
+                }
 
-                return true;
-            }
+                if (
+                    !$notifyCustomer->mpmPerson->addresses ||
+                    $notifyCustomer->mpmPerson->addresses[0]->phone === null ||
+                    $notifyCustomer->mpmPerson->addresses[0]->phone === ""
+                ) {
+                    return true;
+                }
 
-            if (!$notifyCustomer->mpmPerson->addresses || $notifyCustomer->mpmPerson->addresses[0]->phone === null ||
-                $notifyCustomer->mpmPerson->addresses[0]->phone === "") {
-                return true;
-            }
+                SmsProcessor::dispatch(
+                    $smTransaction->thirdPartyTransaction->transaction,
+                    SmsTypes::TRANSACTION_CONFIRMATION
+                )->allOnConnection('redis')->onQueue(\config('services.queues.sms'));
 
-            $sms = new Sms();
-            $sms->uuid = (string)Uuid::generate(4);
-            resolve('SmsProvider')
-                ->sendSms(
-                    $smTransaction->thirdPartyTransaction->transaction->sender,
-                    $this->smsBodyGenerator->generateSmsBody($smTransaction->thirdPartyTransaction->transaction,
-                        $notifyCustomer),
-                    sprintf(config()->get('services.sms.callback'), $sms->uuid)
+                $this->smSmsNotifiedCustomerService->createTransactionSmsNotify(
+                    $notifyCustomer->customer_id,
+                    $smTransaction->id
                 );
-
-            $this->smSmsNotifiedCustomerService->createTransactionSmsNotify($notifyCustomer->customer_id,
-                $smTransaction->id);
-            return true;
-        });
-
+                return true;
+            });
     }
 
     private function sendLowBalanceWarningNotifySms($customers, $smsNotifiedCustomers, $lowBalanceMin)
@@ -119,26 +116,26 @@ class SparkMeterSmsNotifier extends Command
             $smsNotifiedCustomers,
             $lowBalanceMin
         ) {
-            $notifiedCustomer = $smsNotifiedCustomers->where('notify_type','low_balance')->where('customer_id',
-                $customer->customer_id)->first();
+            $notifiedCustomer = $smsNotifiedCustomers->where('notify_type', 'low_balance')->where(
+                'customer_id',
+                $customer->customer_id
+            )->first();
             if ($notifiedCustomer) {
                 return true;
             }
-            if ($customer->credit_balance>$customer->low_balance_limit){
+            if ($customer->credit_balance > $customer->low_balance_limit) {
                 return true;
             }
-            if (!$customer->mpmPerson->addresses || $customer->mpmPerson->addresses[0]->phone === null ||
-                $customer->mpmPerson->addresses[0]->phone === "") {
+            if (
+                !$customer->mpmPerson->addresses || $customer->mpmPerson->addresses[0]->phone === null ||
+                $customer->mpmPerson->addresses[0]->phone === ""
+            ) {
                 return true;
             }
-            $sms = new Sms();
-            $sms->uuid = (string)Uuid::generate(4);
-            resolve('SmsProvider')
-                ->sendSms(
-                    $customer->mpmPerson->addresses[0]->phone,
-                    $this->smsBodyGenerator->generateSmsBody(null, $customer),
-                    sprintf(config()->get('services.sms.callback'), $sms->uuid)
-                );
+            SparkSmsProcessor::dispatch(
+                $customer,
+                SparkSmsTypes::LOW_BALANCE_LIMIT_NOTIFIER
+            )->allOnConnection('redis')->onQueue(\config('services.queues.sms'));
 
             $this->smSmsNotifiedCustomerService->createLowBalanceSmsNotify($customer->customer_id);
             return true;

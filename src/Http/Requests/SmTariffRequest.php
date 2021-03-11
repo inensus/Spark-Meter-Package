@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Http\Requests;
-
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -28,7 +26,7 @@ class SmTariffRequest extends FormRequest
      */
     public function rules()
     {
-        $meterTariff=SmTariff::with('mpmTariff')->where('tariff_id',$this->id)->firstOrFail();
+        $meterTariff = SmTariff::with('mpmTariff')->where('tariff_id', $this->id)->firstOrFail();
         return [
             'name' => ['required',Rule::unique('meter_tariffs')->ignore($meterTariff->mpmTariff->id)],
             'flatPrice' => 'required',

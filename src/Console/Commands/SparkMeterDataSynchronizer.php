@@ -1,9 +1,11 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Console\Commands;
 
-
+use App\Jobs\SmsProcessor;
+use App\Models\Address\Address;
+use App\Models\User;
+use App\Sms\SmsTypes;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Inensus\SparkMeter\Exceptions\CronJobException;
@@ -27,6 +29,8 @@ class SparkMeterDataSynchronizer extends Command
     private $smSyncSettingService;
     private $smSyncActionService;
     private $smTransactionService;
+    private $address;
+
     public function __construct(
         SiteService $smSiteService,
         MeterModelService $smMeterModelService,
@@ -34,17 +38,17 @@ class SparkMeterDataSynchronizer extends Command
         SmSyncSettingService $smSyncSettingService,
         TransactionService $smTransactionService,
         CustomerService $smCustomerService,
-        SmSyncActionService $smSyncActionService
-
+        SmSyncActionService $smSyncActionService,
+        Address $address
     ) {
         parent::__construct();
         $this->smSiteService = $smSiteService;
         $this->smMeterModelService = $smMeterModelService;
         $this->smTariffService = $smTariffService;
-        $this->smTransactionService=$smTransactionService;
+        $this->smTransactionService = $smTransactionService;
         $this->smCustomerService = $smCustomerService;
-        $this->smSyncActionService=$smSyncActionService;
-        $this->smSyncSettingService=$smSyncSettingService;
+        $this->smSyncActionService = $smSyncActionService;
+        $this->smSyncSettingService = $smSyncSettingService;
     }
 
     public function handle(): void
@@ -58,8 +62,32 @@ class SparkMeterDataSynchronizer extends Command
         $syncActions = $this->smSyncActionService->getActionsNeedsToSync();
         try {
             $this->smSyncSettingService->getSyncSettings()->each(function ($syncSetting) use ($syncActions) {
-                $syncNeeded = $syncActions->whereIn('sync_setting_id', $syncSetting->id)->where('attempts', '<', $syncSetting->max_attempts)->first();
-                if ($syncNeeded) {
+                $syncAction = $syncActions->where('sync_setting_id', $syncSetting->id)->first();
+                if (!$syncAction) {
+                    return true;
+                }
+                if ($syncAction->attempts >= $syncSetting->max_attempts) {
+                    $nextSync = Carbon::parse($syncAction->next_sync)->addHours(2);
+                    $syncAction->next_sync = $nextSync;
+                    $adminAddress = $this->address->newQuery()->whereHasMorph(
+                        'owner',
+                        [User::class]
+                    )->first();
+                    if (!$adminAddress) {
+                        return true;
+                    }
+                    $data = [
+                        'message' => $syncSetting->action_name .
+                            ' synchronization has failed by unrealizable reason that occurred
+                             on source API. It is going to be retried at ' .
+                            $nextSync,
+                        'phone' => $adminAddress->phone
+                    ];
+                    SmsProcessor::dispatch(
+                        $data,
+                        SmsTypes::MANUAL_SMS
+                    )->allOnConnection('redis')->onQueue(\config('services.queues.sms'));
+                } else {
                     switch ($syncSetting->action_name) {
                         case 'Sites':
                             $this->smSiteService->sync();
@@ -78,6 +106,7 @@ class SparkMeterDataSynchronizer extends Command
                             break;
                     }
                 }
+                return true;
             });
         } catch (CronJobException $e) {
             $this->warn('dataSync command is failed. message => ' . $e->getMessage());

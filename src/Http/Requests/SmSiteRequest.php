@@ -1,13 +1,11 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Http\Requests;
-
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class SmSiteRequest  extends FormRequest
+class SmSiteRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.

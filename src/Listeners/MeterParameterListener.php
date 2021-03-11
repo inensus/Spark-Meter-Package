@@ -63,43 +63,38 @@ class MeterParameterListener
             $q->where('id', $meter_id);
         })->first();
         if ($meterInfo->meter->manufacturer->name === "Spark Meters") {
-
             $tariffId = $meterInfo->tariff->id;
             $city = $this->city->newQuery()->find($meterInfo->address->city_id);
-            $miniGridId= $city->mini_grid_id;
+            $miniGridId = $city->mini_grid_id;
 
-            $smSite = $this->smSite->newQuery()->where('mpm_mini_grid_id',$miniGridId)->first();
-            if ($smSite){
+            $smSite = $this->smSite->newQuery()->where('mpm_mini_grid_id', $miniGridId)->first();
+            if ($smSite) {
                 $smTariff = $this->smTariff->newQuery()->whereHas('mpmTariff', function ($q) use ($tariffId) {
                     $q->where('mpm_tariff_id', $tariffId);
                 })->first();
                 if (!$smTariff) {
-                    $this->tariffService->createSmTariff($meterInfo->tariff,$smSite->site_id);
+                    $this->tariffService->createSmTariff($meterInfo->tariff, $smSite->site_id);
                 }
                 if ($meterInfo->owner) {
                     if ($meterInfo->owner->is_customer == 1) {
                         $customerId = $meterInfo->owner->id;
-                        $smCustomer = $this->smCustomer->newQuery()->whereHas('mpmPerson',
+                        $smCustomer = $this->smCustomer->newQuery()->whereHas(
+                            'mpmPerson',
                             function ($q) use ($customerId) {
                                 $q->where('mpm_customer_id', $customerId);
-                            })->first();
+                            }
+                        )->first();
                         if (!$smCustomer) {
-                            $this->customerService->createCustomer($meterInfo,$smSite->site_id);
+                            $this->customerService->createCustomer($meterInfo, $smSite->site_id);
                         }
                     }
-
                 }
-
             }
-
-
         }
-
     }
 
     public function subscribe(Dispatcher $events)
     {
         $events->listen('meterparameter.saved', 'Inensus\SparkMeter\Listeners\MeterParameterListener@onParameterSaved');
     }
-
 }

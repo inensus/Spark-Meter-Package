@@ -1,8 +1,6 @@
 <?php
 
-
 namespace Inensus\SparkMeter\Models;
-
 
 class SmOrganization extends BaseModel
 {

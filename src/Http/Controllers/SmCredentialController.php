@@ -11,10 +11,9 @@ use Inensus\SparkMeter\Services\CredentialService;
 class SmCredentialController extends Controller
 {
     private $credentialService;
-    public function __construct(CredentialService $credentialService )
+    public function __construct(CredentialService $credentialService)
     {
-        $this->credentialService=$credentialService;
-
+        $this->credentialService = $credentialService;
     }
 
     public function show(): SparkResource
@@ -31,5 +30,4 @@ class SmCredentialController extends Controller
         ]));
         return new SparkMeterCredentialResource($credentials);
     }
-
 }
