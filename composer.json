@@ -16,9 +16,7 @@
   "minimum-stability": "dev",
   "autoload": {
     "psr-4": {
-      "Inensus\\SparkMeter\\": "src",
-      "Inensus\\SparkMeter\\Tests": "tests"
-
+      "Inensus\\SparkMeter\\": "src"
     }
   },
   "extra": {

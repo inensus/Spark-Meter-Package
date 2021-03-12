@@ -1,6 +1,6 @@
 <?php
 
-namespace Inensus\SparkMeter\Test;
+namespace Inensus\SparkMeter\Test\Unit;
 
 use App\Jobs\SmsProcessor;
 use App\Models\Address\Address;
