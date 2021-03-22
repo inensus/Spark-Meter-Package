@@ -163,7 +163,7 @@ class SiteService implements ISynchronizeService
         try {
             $syncCheck = $this->syncCheck(true);
             $syncCheck['data']->filter(function ($site) {
-                return $site['syncStatus'] === 3;
+                return $site['syncStatus'] === SyncStatus::NOT_REGISTERED_YET;
             })->each(function ($site) {
                 $miniGrid = $this->creteRelatedMiniGrid($site);
                 $this->site->newQuery()->create([
@@ -176,7 +176,7 @@ class SiteService implements ISynchronizeService
             });
 
             $syncCheck['data']->filter(function ($site) {
-                return $site['syncStatus'] === 2;
+                return $site['syncStatus'] === SyncStatus::MODIFIED;
             })->each(function ($site) {
                 $miniGrid = is_null($site['relatedMiniGrid']) ?
                     $this->creteRelatedMiniGrid($site) : $this->updateRelatedMiniGrid(

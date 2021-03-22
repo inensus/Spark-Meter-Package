@@ -219,9 +219,9 @@ class SmsNotifyTest extends TestCase
 
         //create calin manufacturer
         Manufacturer::query()->create([
-            'name' => 'CALIN',
-            'website' => 'http://www.calinmeter.com/',
-            'api_name' => 'CalinApi',
+            'name' => 'Spark Meters',
+            'website' => 'https://www.sparkmeter.io/',
+            'api_name' => 'SparkMeterApi',
         ]);
 
         //create meter

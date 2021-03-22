@@ -61,32 +61,10 @@ class SparkMeterServiceProvider extends ServiceProvider
 
     public function register()
     {
-
         $this->mergeConfigFrom(__DIR__ . '/../../config/spark-meter-integration.php', 'spark');
-
         $this->app->register(EventServiceProvider::class);
         $this->app->register(ObserverServiceProvider::class);
-
-        $this->app->bind('SparkMeterApi', static function () {
-            $client = new Client();
-            $sparkMeterApiRequests = new SparkMeterApiRequests();
-            $tariffService = new TariffService();
-            $meterParameter = new MeterParameter();
-            $smCustomer = new SmCustomer();
-            $smTransaction = new SmTransaction();
-            $smTariff = new SmTariff();
-            $transaction = new Transaction();
-            return new SparkMeterApi(
-                $sparkMeterApiRequests,
-                $client,
-                $tariffService,
-                $meterParameter,
-                $smCustomer,
-                $smTransaction,
-                $smTariff,
-                $transaction
-            );
-        });
+        $this->app->bind('SparkMeterApi',SparkMeterApi::class);
     }
 
 

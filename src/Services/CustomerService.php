@@ -163,11 +163,12 @@ class CustomerService implements ISynchronizeService
                 'meter_tariff_name' => $customerData['meter_tariff_name'],
                 'name' => $customerData['name'],
                 'code' => $customerData['code'],
-                'phone_number' => $customerData['phone_number'],
                 'coords' => $customerData['coords'],
                 'address' => $customerData['address']
             ];
-
+            if ($customerData['phone_number']){
+                $putParams['phone_number'] = $customerData['phone_number'];
+            }
             $sparkCustomerId = $this->sparkMeterApiRequests->put('/customers/' . $customerId, $putParams, $siteId);
             return $sparkCustomerId['customer_id'];
         } catch (Exception $e) {
@@ -285,12 +286,17 @@ class CustomerService implements ISynchronizeService
     {
         $sparkCustomerMeterSerial = $customer['meters'][0]['serial'];
         $currentTariffName = $customer['meters'][0]['current_tariff_name'];
+        $site = $this->smSite->newQuery()->with('mpmMiniGrid')->where('site_id', $site_id)->firstOrFail();
+        $sparkCity = $site->mpmMiniGrid->cities[0];
         $address = $person->addresses()->where('is_primary', 1)->first();
         $address->update([
             'phone' => $customer['phone_number'],
             'street' => $customer['meters'][0]['street1']
         ]);
         $meterParameters = $person->meters()->first();
+        $meterParameters->address()->update([
+            'city_id' => $sparkCity->id,
+        ]);
         $meter = $meterParameters->meter();
         if ($meter) {
             $meter->update([
@@ -313,22 +319,15 @@ class CustomerService implements ISynchronizeService
             $geo->points = $customer['meters'][0]['coords'] === "" ?
                 config('spark.geoLocation') : $customer['meters'][0]['coords'];
             $geo->update();
+            $meterParameters->address()->update([
+                'geo_id' => $geo->id,
+            ]);
         }
         $person->update([
             'name' => $customer['name'],
             'surname' => "",
             'updated_at' => date('Y-m-d h:i:s')
         ]);
-        $site = $this->smSite->newQuery()->with('mpmMiniGrid')->where('site_id', $site_id)->firstOrFail();
-
-        $sparkCity = $site->mpmMiniGrid->cities[0];
-        $address = new Address();
-        $address = $address->newQuery()->create([
-            'city_id' => $sparkCity->id,
-        ]);
-        $address->owner()->associate($meterParameters);
-        $address->geo()->associate($meterParameters->geo);
-        $address->save();
     }
 
     public function checkConnectionAvailability()
@@ -414,7 +413,7 @@ class CustomerService implements ISynchronizeService
             $customersCollection->each(function ($customers) {
 
                 $customers['site_data']->filter(function ($customer) {
-                    return $customer['syncStatus'] === 3;
+                    return $customer['syncStatus'] === SyncStatus::NOT_REGISTERED_YET;
                 })->each(function ($customer) use ($customers) {
                     $mpmCustomerId = $this->createRelatedPerson($customer, $customers['site_id']);
                     $this->smCustomer->newQuery()->create([
@@ -426,7 +425,7 @@ class CustomerService implements ISynchronizeService
                     ]);
                 });
                 $customers['site_data']->filter(function ($customer) {
-                    return $customer['syncStatus'] === 2;
+                    return $customer['syncStatus'] === SyncStatus::MODIFIED;
                 })->each(function ($customer) use ($customers) {
                     is_null($customer['relatedPerson']) ? $this->createRelatedPerson(
                         $customer,
