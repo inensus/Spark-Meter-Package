@@ -3,15 +3,16 @@
 namespace Inensus\SparkMeter\Console\Commands;
 
 use App\Models\Sms;
+use App\Sms\Senders\SmsConfigs;
 use App\Sms\SmsTypes;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Inensus\SparkMeter\Exceptions\CronJobException;
-use Inensus\SparkMeter\Jobs\SparkSmsProcessor;
 use Inensus\SparkMeter\Services\CustomerService;
 use Inensus\SparkMeter\Services\SmSmsNotifiedCustomerService;
 use Inensus\SparkMeter\Services\SmSmsSettingService;
 use Inensus\SparkMeter\Services\TransactionService;
+use Inensus\SparkMeter\Sms\Senders\SparkSmsConfig;
 use Inensus\SparkMeter\Sms\SparkSmsTypes;
 use App\Jobs\SmsProcessor;
 
@@ -55,11 +56,12 @@ class SparkMeterSmsNotifier extends Command
             $smsNotifiedCustomers = $this->smSmsNotifiedCustomerService->getSmsNotifiedCustomers();
             $customers = $this->smCustomerService->getSparkCustomersWithAddress();
             $this->sendTransactionNotifySms($transactionMin, $smsNotifiedCustomers, $customers);
-            $this->sendLowBalanceWarningNotifySms($customers->where(
-                'updated_at',
-                '>=',
-                Carbon::now()->subMinutes($lowBalanceMin)
-            )->get(), $smsNotifiedCustomers, $lowBalanceMin);
+            $this->sendLowBalanceWarningNotifySms($customers
+                ->where(
+                    'updated_at',
+                    '>=',
+                    Carbon::now()->subMinutes($lowBalanceMin)
+                ), $smsNotifiedCustomers, $lowBalanceMin);
         } catch (CronJobException $e) {
             $this->warn('dataSync command is failed. message => ' . $e->getMessage());
         }
@@ -99,7 +101,8 @@ class SparkMeterSmsNotifier extends Command
 
                 SmsProcessor::dispatch(
                     $smTransaction->thirdPartyTransaction->transaction,
-                    SmsTypes::TRANSACTION_CONFIRMATION
+                    SmsTypes::TRANSACTION_CONFIRMATION,
+                    SmsConfigs::class
                 )->allOnConnection('redis')->onQueue(\config('services.queues.sms'));
 
                 $this->smSmsNotifiedCustomerService->createTransactionSmsNotify(
@@ -132,9 +135,10 @@ class SparkMeterSmsNotifier extends Command
             ) {
                 return true;
             }
-            SparkSmsProcessor::dispatch(
+            SmsProcessor::dispatch(
                 $customer,
-                SparkSmsTypes::LOW_BALANCE_LIMIT_NOTIFIER
+                SparkSmsTypes::LOW_BALANCE_LIMIT_NOTIFIER,
+                SparkSmsConfig::class
             )->allOnConnection('redis')->onQueue(\config('services.queues.sms'));
 
             $this->smSmsNotifiedCustomerService->createLowBalanceSmsNotify($customer->customer_id);
