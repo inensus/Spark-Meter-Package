@@ -117,6 +117,24 @@ class SmSyncSettingService
             ];
             $this->syncActionService->createSyncAction($syncAction);
         }
+
+        $syncSalesAccount = $this->syncSetting->newQuery()->where('action_name', 'SalesAccounts')->first();
+        if (!$syncSalesAccount) {
+            $now = Carbon::now();
+            $salesAccountSetting = $this->setting->newQuery()->make();
+            $syncSalesAccount = $this->syncSetting->newQuery()->create([
+                'action_name' => 'SalesAccounts',
+                'sync_in_value_str' => 'minute',
+                'sync_in_value_num' => 5,
+            ]);
+            $salesAccountSetting->setting()->associate($syncSalesAccount);
+            $salesAccountSetting->save();
+            $syncAction = [
+                'sync_setting_id' => $syncSalesAccount->id,
+                'next_sync' => $now->add($fiveMinInterval)
+            ];
+            $this->syncActionService->createSyncAction($syncAction);
+        }
     }
 
     public function updateSyncSettings($syncSettings)

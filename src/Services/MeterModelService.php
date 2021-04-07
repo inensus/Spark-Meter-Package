@@ -186,7 +186,7 @@ class MeterModelService implements ISynchronizeService
         try {
             $url = $this->rootUrl . '/models';
             $sparkMeterModels = $this->sparkMeterApiRequests->get($url, $siteId);
-        } catch (SparkAPIResponseException $e) {
+        } catch (\Exception $e) {
             Log::critical('Spark meter meter-models sync-check-by-site failed.', ['Error :' => $e->getMessage()]);
             throw  new SparkAPIResponseException($e->getMessage());
         }

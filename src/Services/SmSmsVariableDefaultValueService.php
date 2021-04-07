@@ -36,10 +36,16 @@ class SmSmsVariableDefaultValueService
             [
                 'variable' => 'credit_balance',
                 'value' => '900',
+            ],
+            [
+                'variable' => 'meter_serial',
+                'value' => 'SM-12321-232-1',
             ]
         ];
         collect($smsVariableDefaultValues)->each(function ($variable) {
-            $this->smsVariableDefaultValue->newQuery()->create($variable);
+            $this->smsVariableDefaultValue->newQuery()->firstOrCreate(['variable' => $variable['variable']],
+                $variable
+            );
         });
     }
 }

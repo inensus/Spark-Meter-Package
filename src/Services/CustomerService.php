@@ -12,9 +12,9 @@ use App\Models\GeographicalInformation;
 use App\Models\Manufacturer;
 use App\Models\Meter\Meter;
 use App\Models\Meter\MeterParameter;
-use Carbon\Carbon;
 use Exception;
 use App\Models\Person\Person;
+use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -356,7 +356,7 @@ class CustomerService implements ISynchronizeService
             $sparkCustomersResult = $this->sparkMeterApiRequests->getByParams('/customers', $params, $siteId);
             $phone = $sparkCustomersResult['phone_number'] == null ? 'NA' : $sparkCustomersResult['phone_number'];
             return $this->modelHasher($sparkCustomersResult, $phone);
-        } catch (SparkAPIResponseException $e) {
+        } catch (GuzzleException $e) {
             throw new SparkAPIResponseException($e->getMessage());
         }
     }
@@ -579,5 +579,27 @@ class CustomerService implements ISynchronizeService
         } else {
             return ['result' => true, 'message' => 'Records are updated'];
         }
+    }
+
+    public function resetMeter($customer)
+    {
+        $rootUrl = '/customers/'.$customer->customer_id.'/reset-meter';
+        try {
+            $this->sparkMeterApiRequests->post($rootUrl,null,$customer->site->site_id);
+        } catch (SparkAPIResponseException $e) {
+            Log::critical('Spark meter customer meter reset failed.', ['Error :' => $e->getMessage()]);
+            throw  new SparkAPIResponseException($e->getMessage());
+        }
+    }
+
+    public function getSparkCustomerWithPhone($phoneNumber)
+    {
+        $person = $this->person::with(['addresses'])
+            ->whereHas('addresses', static function ($q) use ($phoneNumber) {
+                    $q->where('phone', $phoneNumber);
+                }
+            )->first();
+
+        return $this->smCustomer->newQuery()->with(['site','mpmPerson.meters.meter'])->where('mpm_customer_id',$person->id)->first();
     }
 }

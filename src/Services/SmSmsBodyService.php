@@ -12,7 +12,6 @@ class SmSmsBodyService
     {
         $this->smsBody = $smsBody;
     }
-
     public function getSmsBodyByReference($reference)
     {
         return $this->smsBody->newQuery()->where('reference', $reference)->firstOrFail();
@@ -58,14 +57,58 @@ class SmSmsBodyService
                 'title' => 'Low Balance Limit Notify'
             ],
             [
+                'reference' => 'SparkSmsBalanceFeedbackHeader',
+                'place_holder' => 'Dear [name] [surname],',
+                'variables' => 'name,surname',
+                'title' => 'Sms Header'
+            ],
+            [
+                'reference' => 'SparkSmsBalanceFeedbackBody',
+                'place_holder' => 'your currently balance is [credit_balance]',
+                'variables' => 'credit_balance',
+                'title' => 'Balance Feedback'
+            ],
+            [
+                'reference' => 'SparkSmsMeterResetFeedbackHeader',
+                'place_holder' => 'Dear [name] [surname],',
+                'variables' => 'name,surname',
+                'title' => 'Sms Header'
+            ],
+            [
+                'reference' => 'SparkSmsMeterResetFeedbackBody',
+                'place_holder' => 'your meter, [meter_serial] has reset successfully.',
+                'variables' => 'meter_serial',
+                'title' => 'Meter Reset Feedback'
+            ],
+            [
+                'reference' => 'SparkSmsMeterResetFailedFeedbackBody',
+                'place_holder' => 'meter reset failed with [meter_serial].',
+                'variables' => 'meter_serial',
+                'title' => 'Meter Reset Failed Feedback'
+            ],
+            [
+                'reference' => 'SparkSmsMeterResetFeedbackFooter',
+                'place_holder' => 'Your Company etc.',
+                'variables' => '',
+                'title' => 'Sms Footer'
+            ],
+            [
                 'reference' => 'SparkSmsLowBalanceFooter',
+                'place_holder' => 'Your Company etc.',
+                'variables' => '',
+                'title' => 'Sms Footer'
+            ],
+            [
+                'reference' => 'SparkSmsBalanceFeedbackFooter',
                 'place_holder' => 'Your Company etc.',
                 'variables' => '',
                 'title' => 'Sms Footer'
             ]
         ];
         collect($smsBodies)->each(function ($smsBody) {
-             $this->smsBody->newQuery()->create($smsBody);
+            $this->smsBody->newQuery()->firstOrCreate(['reference' => $smsBody['reference']],
+                $smsBody
+            );
         });
     }
 }
