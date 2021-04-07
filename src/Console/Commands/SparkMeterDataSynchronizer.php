@@ -5,6 +5,7 @@ namespace Inensus\SparkMeter\Console\Commands;
 use App\Jobs\SmsProcessor;
 use App\Models\Address\Address;
 use App\Models\User;
+use App\Sms\Senders\SmsConfigs;
 use App\Sms\SmsTypes;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
@@ -49,6 +50,7 @@ class SparkMeterDataSynchronizer extends Command
         $this->smCustomerService = $smCustomerService;
         $this->smSyncActionService = $smSyncActionService;
         $this->smSyncSettingService = $smSyncSettingService;
+        $this->address = $address;
     }
 
     public function handle(): void
@@ -77,15 +79,17 @@ class SparkMeterDataSynchronizer extends Command
                         return true;
                     }
                     $data = [
-                        'message' =>'~ Spark-Meter Package ~ ' .$syncSetting->action_name .
+                        'message' => '~ Spark-Meter Package ~ ' . $syncSetting->action_name .
                             ' synchronization has failed by unrealizable reason that occurred
-                             on Spark Meter API. ' .$syncSetting->action_name .' synchronization is going to be retried at ' .
+                             on Spark Meter API. '
+                            . $syncSetting->action_name . ' synchronization is going to be retried at ' .
                             $nextSync,
                         'phone' => $adminAddress->phone
                     ];
                     SmsProcessor::dispatch(
                         $data,
-                        SmsTypes::MANUAL_SMS
+                        SmsTypes::MANUAL_SMS,
+                        SmsConfigs::class
                     )->allOnConnection('redis')->onQueue(\config('services.queues.sms'));
                 } else {
                     switch ($syncSetting->action_name) {

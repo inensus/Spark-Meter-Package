@@ -40,7 +40,6 @@
 
 <script>
 
-import { EventBus } from '../../eventbus'
 import { SmsVariableDefaultValueService } from '../../services/SmsVariableDefaultValueService'
 
 export default {
@@ -62,14 +61,15 @@ export default {
             smsVariableDefaultValueService: new SmsVariableDefaultValueService(),
         }
     },
+
     mounted () {
         this.constantVariables = this.smsBody.variables.map((e) => {
             return e.replace(/[^a-zA-Z0-9]/g, '')
         })
-        EventBus.$on('checkValidate', async () => {
-            this.smsBody.validation = await this.$validator.validateAll()
-        })
-        this.prepareShownMessage()
+        setTimeout(() => {
+            this.prepareShownMessage()
+        }, 100)
+
     },
     methods: {
         selectVariable (tag) {
@@ -108,6 +108,9 @@ export default {
         },
         prepareShownMessage () {
             this.smsVariableDefaultValueService.prepareShownMessage(this.smsBody.body, this.smsVariableDefaultValues)
+        },
+        async validateBody () {
+            this.smsBody.validation = await this.$validator.validateAll(this.tabName)
         },
         alertNotify (type, message) {
             this.$notify({

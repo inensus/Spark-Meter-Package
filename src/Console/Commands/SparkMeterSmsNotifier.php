@@ -3,17 +3,19 @@
 namespace Inensus\SparkMeter\Console\Commands;
 
 use App\Models\Sms;
+use App\Services\SmsService;
+use App\Sms\Senders\SmsConfigs;
 use App\Sms\SmsTypes;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Inensus\SparkMeter\Exceptions\CronJobException;
-use Inensus\SparkMeter\Jobs\SparkSmsProcessor;
 use Inensus\SparkMeter\Services\CustomerService;
 use Inensus\SparkMeter\Services\SmSmsNotifiedCustomerService;
 use Inensus\SparkMeter\Services\SmSmsSettingService;
 use Inensus\SparkMeter\Services\TransactionService;
+use Inensus\SparkMeter\Sms\Senders\SparkSmsConfig;
 use Inensus\SparkMeter\Sms\SparkSmsTypes;
-use App\Jobs\SmsProcessor;
+
 
 class SparkMeterSmsNotifier extends Command
 {
@@ -25,13 +27,15 @@ class SparkMeterSmsNotifier extends Command
     private $smTransactionService;
     private $smSmsNotifiedCustomerService;
     private $smCustomerService;
+    private $smsService;
 
     public function __construct(
         SmSmsSettingService $smsSettingService,
         Sms $sms,
         TransactionService $smTransactionsService,
         SmSmsNotifiedCustomerService $smSmsNotifiedCustomerService,
-        CustomerService $smCustomerService
+        CustomerService $smCustomerService,
+        SmsService $smsService
     ) {
         parent::__construct();
         $this->smsSettingsService = $smsSettingService;
@@ -39,6 +43,7 @@ class SparkMeterSmsNotifier extends Command
         $this->smTransactionService = $smTransactionsService;
         $this->smSmsNotifiedCustomerService = $smSmsNotifiedCustomerService;
         $this->smCustomerService = $smCustomerService;
+        $this->smsService = $smsService;
     }
 
     public function handle()
@@ -55,11 +60,12 @@ class SparkMeterSmsNotifier extends Command
             $smsNotifiedCustomers = $this->smSmsNotifiedCustomerService->getSmsNotifiedCustomers();
             $customers = $this->smCustomerService->getSparkCustomersWithAddress();
             $this->sendTransactionNotifySms($transactionMin, $smsNotifiedCustomers, $customers);
-            $this->sendLowBalanceWarningNotifySms($customers->where(
-                'updated_at',
-                '>=',
-                Carbon::now()->subMinutes($lowBalanceMin)
-            )->get(), $smsNotifiedCustomers, $lowBalanceMin);
+            $this->sendLowBalanceWarningNotifySms($customers
+                ->where(
+                    'updated_at',
+                    '>=',
+                    Carbon::now()->subMinutes($lowBalanceMin)
+                ), $smsNotifiedCustomers, $lowBalanceMin);
         } catch (CronJobException $e) {
             $this->warn('dataSync command is failed. message => ' . $e->getMessage());
         }
@@ -72,8 +78,11 @@ class SparkMeterSmsNotifier extends Command
     private function sendTransactionNotifySms($transactionMin, $smsNotifiedCustomers, $customers)
     {
         $this->smTransactionService->getSparkTransactions($transactionMin)
-            ->each(function ($smTransaction) use ( $transactionMin, $smsNotifiedCustomers, $customers
-        ) {
+            ->each(function ($smTransaction) use (
+                $transactionMin,
+                $smsNotifiedCustomers,
+                $customers
+            ) {
                 $smsNotifiedCustomers = $smsNotifiedCustomers->where(
                     'notify_id',
                     $smTransaction->id
@@ -88,7 +97,6 @@ class SparkMeterSmsNotifier extends Command
                 if (!$notifyCustomer) {
                     return true;
                 }
-
                 if (
                     !$notifyCustomer->mpmPerson->addresses ||
                     $notifyCustomer->mpmPerson->addresses[0]->phone === null ||
@@ -96,12 +104,9 @@ class SparkMeterSmsNotifier extends Command
                 ) {
                     return true;
                 }
-
-                SmsProcessor::dispatch(
-                    $smTransaction->thirdPartyTransaction->transaction,
-                    SmsTypes::TRANSACTION_CONFIRMATION
-                )->allOnConnection('redis')->onQueue(\config('services.queues.sms'));
-
+                $this->smsService->sendSms($smTransaction->thirdPartyTransaction->transaction,
+                    SmsTypes::TRANSACTION_CONFIRMATION,
+                    SmsConfigs::class);
                 $this->smSmsNotifiedCustomerService->createTransactionSmsNotify(
                     $notifyCustomer->customer_id,
                     $smTransaction->id
@@ -132,11 +137,9 @@ class SparkMeterSmsNotifier extends Command
             ) {
                 return true;
             }
-            SparkSmsProcessor::dispatch(
-                $customer,
-                SparkSmsTypes::LOW_BALANCE_LIMIT_NOTIFIER
-            )->allOnConnection('redis')->onQueue(\config('services.queues.sms'));
-
+            $this->smsService->sendSms($customer,
+                SparkSmsTypes::LOW_BALANCE_LIMIT_NOTIFIER,
+                SparkSmsConfig::class);
             $this->smSmsNotifiedCustomerService->createLowBalanceSmsNotify($customer->customer_id);
             return true;
         });

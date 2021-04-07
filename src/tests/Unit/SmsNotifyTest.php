@@ -15,13 +15,13 @@ use App\Models\SmsBody;
 use App\Models\Transaction\ThirdPartyTransaction;
 use App\Models\Transaction\Transaction;
 use App\Models\User;
+use App\Sms\Senders\SmsConfigs;
 use App\Sms\SmsTypes;
 use Carbon\Carbon;
 use Carbon\CarbonInterval;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Queue;
-use Inensus\SparkMeter\Jobs\SparkSmsProcessor;
 use Inensus\SparkMeter\Models\SmCustomer;
 use Inensus\SparkMeter\Models\SmSetting;
 use Inensus\SparkMeter\Models\SmSmsBody;
@@ -30,6 +30,7 @@ use Inensus\SparkMeter\Models\SmSmsSetting;
 use Inensus\SparkMeter\Models\SmSyncAction;
 use Inensus\SparkMeter\Models\SmSyncSetting;
 use Inensus\SparkMeter\Models\SmTransaction;
+use Inensus\SparkMeter\Sms\Senders\SparkSmsConfig;
 use Inensus\SparkMeter\Sms\SparkSmsTypes;
 use Tests\TestCase;
 
@@ -41,7 +42,6 @@ class SmsNotifyTest extends TestCase
     public function is_low_balance_notify_send()
     {
         Queue::fake();
-        config::set('app.debug', false);
         $this->initializeData();
         $lowBalanceMin = SmSmsSetting::query()->where(
             'state',
@@ -81,9 +81,10 @@ class SmsNotifyTest extends TestCase
                 return true;
             }
 
-            SparkSmsProcessor::dispatchNow(
+            SmsProcessor::dispatch(
                 $customer,
-                SparkSmsTypes::LOW_BALANCE_LIMIT_NOTIFIER
+                SparkSmsTypes::LOW_BALANCE_LIMIT_NOTIFIER,
+                SparkSmsConfig::class
             );
 
             SmSmsNotifiedCustomer::query()->create([
@@ -92,15 +93,13 @@ class SmsNotifyTest extends TestCase
             ]);
             return true;
         });
-        $this->assertEquals(SmSmsNotifiedCustomer::query()->get()->count(), 1);
-        $this->assertEquals(Sms::query()->get()->count(), 1);
+        Queue::assertPushed(SmsProcessor::class);
     }
 
     /** @test */
     public function is_transaction_notify_send()
     {
         Queue::fake();
-        config::set('app.debug', false);
         $data = $this->initializeData();
         $this->initializeSparkTransaction($data['customer']);
         $transactionMin = SmSmsSetting::query()->where(
@@ -113,7 +112,6 @@ class SmsNotifyTest extends TestCase
         ])->whereHas('mpmPerson.addresses', function ($q) {
             return $q->where('is_primary', 1);
         })->get();
-
         SmTransaction::query()->with(['thirdPartyTransaction.transaction'])->where(
             'timestamp',
             '>=',
@@ -142,9 +140,10 @@ class SmsNotifyTest extends TestCase
             ) {
                 return true;
             }
-            SmsProcessor::dispatchNow(
+            SmsProcessor::dispatch(
                 $sparkTransaction->thirdPartyTransaction->transaction,
-                SmsTypes::TRANSACTION_CONFIRMATION
+                SmsTypes::TRANSACTION_CONFIRMATION,
+                SmsConfigs::class
             );
             SmSmsNotifiedCustomer::query()->create([
                 'customer_id' => $notifyCustomer->customer_id,
@@ -153,15 +152,13 @@ class SmsNotifyTest extends TestCase
             ]);
             return true;
         });
-        $this->assertEquals(SmSmsNotifiedCustomer::query()->get()->count(), 1);
-        $this->assertEquals(Sms::query()->get()->count(), 1);
+        Queue::assertPushed(SmsProcessor::class);
     }
 
     /** @test */
     public function is_max_attempt_notify_send()
     {
         Queue::fake();
-        config::set('app.debug', false);
         $this->addSyncSettings();
         $this->initializeAdminData();
         $syncActions = SmSyncAction::query()->where('next_sync', '<=', Carbon::now())
@@ -177,7 +174,6 @@ class SmsNotifyTest extends TestCase
             if ($syncAction->attempts >= $syncSetting->max_attempts) {
                 $nextSync = Carbon::parse($syncAction->next_sync)->addHours(2);
                 $syncAction->next_sync = $nextSync;
-                $newNextSync = $nextSync;
                 $adminAddress = Address::query()->whereHasMorph(
                     'owner',
                     [User::class]
@@ -191,15 +187,14 @@ class SmsNotifyTest extends TestCase
                          It is going to be retried at ' . $nextSync,
                     'phone' => $adminAddress->phone
                 ];
-                SmsProcessor::dispatchNow(
+                SmsProcessor::dispatch(
                     $data,
-                    SmsTypes::MANUAL_SMS
+                    SmsTypes::MANUAL_SMS,
+                    SmsConfigs::class
                 );
             }
             return true;
         });
-
-
         $this->assertLessThan($oldNextSync, $newNextSync);
     }
 
@@ -224,9 +219,9 @@ class SmsNotifyTest extends TestCase
 
         //create calin manufacturer
         Manufacturer::query()->create([
-            'name' => 'CALIN',
-            'website' => 'http://www.calinmeter.com/',
-            'api_name' => 'CalinApi',
+            'name' => 'Spark Meters',
+            'website' => 'https://www.sparkmeter.io/',
+            'api_name' => 'SparkMeterApi',
         ]);
 
         //create meter

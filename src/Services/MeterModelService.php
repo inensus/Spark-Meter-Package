@@ -62,7 +62,7 @@ class MeterModelService implements ISynchronizeService
             $meterModelsCollection = collect($syncCheck)->except('available_site_count');
             $meterModelsCollection->each(function ($meterModels) {
                 $meterModels['site_data']->filter(function ($meterModel) {
-                    return $meterModel['syncStatus'] === 3;
+                    return $meterModel['syncStatus'] === SyncStatus::NOT_REGISTERED_YET;
                 })->each(function ($meterModel) use ($meterModels) {
                     $meterType = $this->meterType->newQuery()->create([
                         'online' => 1,
@@ -81,7 +81,7 @@ class MeterModelService implements ISynchronizeService
 
 
                 $meterModels['site_data']->filter(function ($meterModel) {
-                    return $meterModel['syncStatus'] === 2;
+                    return $meterModel['syncStatus'] === SyncStatus::MODIFIED;
                 })->each(function ($meterModel) use ($meterModels) {
                     is_null($meterModel['relatedMeterType']) ?
                         $this->createRelatedMeterModel($meterModel) : $this->updateRelatedMeterModel(
@@ -186,7 +186,7 @@ class MeterModelService implements ISynchronizeService
         try {
             $url = $this->rootUrl . '/models';
             $sparkMeterModels = $this->sparkMeterApiRequests->get($url, $siteId);
-        } catch (SparkAPIResponseException $e) {
+        } catch (\Exception $e) {
             Log::critical('Spark meter meter-models sync-check-by-site failed.', ['Error :' => $e->getMessage()]);
             throw  new SparkAPIResponseException($e->getMessage());
         }

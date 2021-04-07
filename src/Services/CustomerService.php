@@ -12,9 +12,9 @@ use App\Models\GeographicalInformation;
 use App\Models\Manufacturer;
 use App\Models\Meter\Meter;
 use App\Models\Meter\MeterParameter;
-use Carbon\Carbon;
 use Exception;
 use App\Models\Person\Person;
+use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -163,11 +163,12 @@ class CustomerService implements ISynchronizeService
                 'meter_tariff_name' => $customerData['meter_tariff_name'],
                 'name' => $customerData['name'],
                 'code' => $customerData['code'],
-                'phone_number' => $customerData['phone_number'],
                 'coords' => $customerData['coords'],
                 'address' => $customerData['address']
             ];
-
+            if ($customerData['phone_number']){
+                $putParams['phone_number'] = $customerData['phone_number'];
+            }
             $sparkCustomerId = $this->sparkMeterApiRequests->put('/customers/' . $customerId, $putParams, $siteId);
             return $sparkCustomerId['customer_id'];
         } catch (Exception $e) {
@@ -285,12 +286,17 @@ class CustomerService implements ISynchronizeService
     {
         $sparkCustomerMeterSerial = $customer['meters'][0]['serial'];
         $currentTariffName = $customer['meters'][0]['current_tariff_name'];
+        $site = $this->smSite->newQuery()->with('mpmMiniGrid')->where('site_id', $site_id)->firstOrFail();
+        $sparkCity = $site->mpmMiniGrid->cities[0];
         $address = $person->addresses()->where('is_primary', 1)->first();
         $address->update([
             'phone' => $customer['phone_number'],
             'street' => $customer['meters'][0]['street1']
         ]);
         $meterParameters = $person->meters()->first();
+        $meterParameters->address()->update([
+            'city_id' => $sparkCity->id,
+        ]);
         $meter = $meterParameters->meter();
         if ($meter) {
             $meter->update([
@@ -313,22 +319,15 @@ class CustomerService implements ISynchronizeService
             $geo->points = $customer['meters'][0]['coords'] === "" ?
                 config('spark.geoLocation') : $customer['meters'][0]['coords'];
             $geo->update();
+            $meterParameters->address()->update([
+                'geo_id' => $geo->id,
+            ]);
         }
         $person->update([
             'name' => $customer['name'],
             'surname' => "",
             'updated_at' => date('Y-m-d h:i:s')
         ]);
-        $site = $this->smSite->newQuery()->with('mpmMiniGrid')->where('site_id', $site_id)->firstOrFail();
-
-        $sparkCity = $site->mpmMiniGrid->cities[0];
-        $address = new Address();
-        $address = $address->newQuery()->create([
-            'city_id' => $sparkCity->id,
-        ]);
-        $address->owner()->associate($meterParameters);
-        $address->geo()->associate($meterParameters->geo);
-        $address->save();
     }
 
     public function checkConnectionAvailability()
@@ -357,7 +356,7 @@ class CustomerService implements ISynchronizeService
             $sparkCustomersResult = $this->sparkMeterApiRequests->getByParams('/customers', $params, $siteId);
             $phone = $sparkCustomersResult['phone_number'] == null ? 'NA' : $sparkCustomersResult['phone_number'];
             return $this->modelHasher($sparkCustomersResult, $phone);
-        } catch (SparkAPIResponseException $e) {
+        } catch (GuzzleException $e) {
             throw new SparkAPIResponseException($e->getMessage());
         }
     }
@@ -414,7 +413,7 @@ class CustomerService implements ISynchronizeService
             $customersCollection->each(function ($customers) {
 
                 $customers['site_data']->filter(function ($customer) {
-                    return $customer['syncStatus'] === 3;
+                    return $customer['syncStatus'] === SyncStatus::NOT_REGISTERED_YET;
                 })->each(function ($customer) use ($customers) {
                     $mpmCustomerId = $this->createRelatedPerson($customer, $customers['site_id']);
                     $this->smCustomer->newQuery()->create([
@@ -426,7 +425,7 @@ class CustomerService implements ISynchronizeService
                     ]);
                 });
                 $customers['site_data']->filter(function ($customer) {
-                    return $customer['syncStatus'] === 2;
+                    return $customer['syncStatus'] === SyncStatus::MODIFIED;
                 })->each(function ($customer) use ($customers) {
                     is_null($customer['relatedPerson']) ? $this->createRelatedPerson(
                         $customer,
@@ -580,5 +579,27 @@ class CustomerService implements ISynchronizeService
         } else {
             return ['result' => true, 'message' => 'Records are updated'];
         }
+    }
+
+    public function resetMeter($customer)
+    {
+        $rootUrl = '/customers/'.$customer->customer_id.'/reset-meter';
+        try {
+            $this->sparkMeterApiRequests->post($rootUrl,null,$customer->site->site_id);
+        } catch (SparkAPIResponseException $e) {
+            Log::critical('Spark meter customer meter reset failed.', ['Error :' => $e->getMessage()]);
+            throw  new SparkAPIResponseException($e->getMessage());
+        }
+    }
+
+    public function getSparkCustomerWithPhone($phoneNumber)
+    {
+        $person = $this->person::with(['addresses'])
+            ->whereHas('addresses', static function ($q) use ($phoneNumber) {
+                    $q->where('phone', $phoneNumber);
+                }
+            )->first();
+
+        return $this->smCustomer->newQuery()->with(['site','mpmPerson.meters.meter'])->where('mpm_customer_id',$person->id)->first();
     }
 }

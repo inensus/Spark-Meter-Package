@@ -321,7 +321,7 @@ class TariffService implements ISynchronizeService
             $tariffsCollection = collect($syncCheck)->except('available_site_count');
             $tariffsCollection->each(function ($tariffs) {
                 $tariffs['site_data']->filter(function ($tariff) {
-                    return $tariff['syncStatus'] === 3;
+                    return $tariff['syncStatus'] === SyncStatus::NOT_REGISTERED_YET;
                 })->each(function ($tariff) use ($tariffs) {
                     $meterTariff = $this->createRelatedTariff($tariff);
                     $maxValue = $this->smMeterModel->newQuery()->max('continuous_limit');
@@ -344,7 +344,7 @@ class TariffService implements ISynchronizeService
                         'hash' => $tariff['hash']
                     ]);
                     $tariffs['site_data']->filter(function ($tariff) {
-                        return $tariff['syncStatus'] === 2;
+                        return $tariff['syncStatus'] === SyncStatus::MODIFIED;
                     })->each(function ($tariff) use ($tariffs) {
                         is_null($tariff['relatedTariff']) ?
                             $this->createRelatedTariff($tariff) : $this->updateRelatedTariff(

@@ -58,10 +58,15 @@ class MenuItemService
         ];
         array_push($subMenuItems, $subMenuItem5);
         $subMenuItem6 = [
-            'name' => 'Settings',
-            'url_slug' => '/spark-meters/sm-setting/page/1',
+            'name' => 'Sales Accounts',
+            'url_slug' => '/spark-meters/sm-sales-account/page/1',
         ];
         array_push($subMenuItems, $subMenuItem6);
+        $subMenuItem7 = [
+            'name' => 'Settings',
+            'url_slug' => '/spark-meters/sm-setting',
+        ];
+        array_push($subMenuItems, $subMenuItem7);
         return ['menuItem' => $menuItem, 'subMenuItems' => $subMenuItems];
     }
 }

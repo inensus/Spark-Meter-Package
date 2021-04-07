@@ -4,6 +4,8 @@ namespace Inensus\SparkMeter\Http\Requests;
 
 use Exception;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
+use Inensus\SparkMeter\Exceptions\SparkAPIResponseException;
 use Inensus\SparkMeter\Helpers\ResultStatusChecker;
 use Inensus\SparkMeter\Models\SmCredential;
 use Inensus\SparkMeter\Models\SmSite;
@@ -32,55 +34,62 @@ class SparkMeterApiRequests
 
     public function get($url, $siteId)
     {
-
-
         $smSite = $this->getThunderCloudInformation($siteId);
-
-        $request = $this->client->get(
-            $smSite->thundercloud_url . $url,
-            [
-                'headers' => [
-                    'Content-Type' => 'application/json;charset=utf-8',
-                    'Authentication-Token' => $smSite->thundercloud_token
-                ],
-            ]
-        );
-
+        try {
+            $request = $this->client->get(
+                $smSite->thundercloud_url . $url,
+                [
+                    'headers' => [
+                        'Content-Type' => 'application/json;charset=utf-8',
+                        'Authentication-Token' => $smSite->thundercloud_token
+                    ],
+                ]
+            );
+        } catch (GuzzleException $exception) {
+            throw new SparkAPIResponseException($exception->getMessage());
+        }
         return $this->resultStatusChecker->checkApiResult(json_decode((string)$request->getBody(), true));
     }
 
     public function post($url, $postParams, $siteId)
     {
         $smSite = $this->getThunderCloudInformation($siteId);
-        $request = $this->client->post(
-            $smSite->thundercloud_url . $url,
-            [
-                'body' => json_encode($postParams),
-                'headers' => [
-                    'Content-Type' => 'application/json;charset=utf-8',
-                    'Authentication-Token' => $smSite->thundercloud_token
-                ],
-            ]
-        );
-
+        try {
+            $request = $this->client->post(
+                $smSite->thundercloud_url . $url,
+                [
+                    'body' => $postParams ? json_encode($postParams) : null,
+                    'headers' => [
+                        'Content-Type' => 'application/json;charset=utf-8',
+                        'Authentication-Token' => $smSite->thundercloud_token
+                    ],
+                ]
+            );
+        } catch (GuzzleException $exception) {
+            throw new SparkAPIResponseException($exception->getMessage());
+        }
         return $this->resultStatusChecker->checkApiResult(json_decode((string)$request->getBody(), true));
     }
 
     public function put($url, $putParams, $siteId)
     {
         $smSite = $this->getThunderCloudInformation($siteId);
-        $request = $this->client->put(
-            $smSite->thundercloud_url . $url,
-            [
-                'body' => json_encode($putParams),
-                'headers' => [
-                    'Content-Type' => 'application/json;charset=utf-8',
-                    'Authentication-Token' => $smSite->thundercloud_token
-                ],
-            ]
-        );
-
+        try {
+            $request = $this->client->put(
+                $smSite->thundercloud_url . $url,
+                [
+                    'body' => json_encode($putParams),
+                    'headers' => [
+                        'Content-Type' => 'application/json;charset=utf-8',
+                        'Authentication-Token' => $smSite->thundercloud_token
+                    ],
+                ]
+            );
+        } catch (GuzzleException $exception) {
+            throw new SparkAPIResponseException($exception->getMessage());
+        }
         return $this->resultStatusChecker->checkApiResult(json_decode((string)$request->getBody(), true));
+
     }
 
     public function getByParams($url, $params, $siteId)
@@ -114,50 +123,65 @@ class SparkMeterApiRequests
     {
         $smSite = $this->getThunderCloudInformation($siteId);
         $apiUrl = $smSite->thundercloud_url . $url . $id;
-        $request = $this->client->get(
-            $apiUrl,
-            [
-                'headers' => [
-                    'Content-Type' => 'application/json;charset=utf-8',
-                    'Authentication-Token' => $smSite->thundercloud_token
-                ],
-            ]
-        );
+        try {
+            $request = $this->client->get(
+                $apiUrl,
+                [
+                    'headers' => [
+                        'Content-Type' => 'application/json;charset=utf-8',
+                        'Authentication-Token' => $smSite->thundercloud_token
+                    ],
+                ]
+            );
+        } catch (GuzzleException $exception) {
+            throw new SparkAPIResponseException($exception->getMessage());
+        }
         return $this->resultStatusChecker->checkApiResult(json_decode((string)$request->getBody(), true));
+
     }
 
 
     public function getFromKoios($url)
     {
         $smCredential = $this->getCredentials();
-        $request = $this->client->get(
-            $smCredential->api_url . $url,
-            [
-                'headers' => [
-                    'Content-Type' => 'application/json;charset=utf-8',
-                    'X-API-KEY' => $smCredential->api_key,
-                    'X-API-SECRET' => $smCredential->api_secret
-                ],
-            ]
-        );
+        try {
+            $request = $this->client->get(
+                $smCredential->api_url . $url,
+                [
+                    'headers' => [
+                        'Content-Type' => 'application/json;charset=utf-8',
+                        'X-API-KEY' => $smCredential->api_key,
+                        'X-API-SECRET' => $smCredential->api_secret
+                    ],
+                ]
+            );
+        } catch (GuzzleException $exception) {
+            throw new SparkAPIResponseException($exception->getMessage());
+        }
         return $this->resultStatusChecker->checkApiResult(json_decode((string)$request->getBody(), true));
+
     }
 
     public function postToKoios($url, $postParams)
     {
         $smCredential = $this->getCredentials();
-        $request = $this->client->post(
-            $smCredential->api_url . $url,
-            [
-                'body' => json_encode($postParams),
-                'headers' => [
-                    'Content-Type' => 'application/json;charset=utf-8',
-                    'X-API-KEY' => $smCredential->api_key,
-                    'X-API-SECRET' => $smCredential->api_secret
-                ],
-            ]
-        );
+        try {
+            $request = $this->client->post(
+                $smCredential->api_url . $url,
+                [
+                    'body' => json_encode($postParams),
+                    'headers' => [
+                        'Content-Type' => 'application/json;charset=utf-8',
+                        'X-API-KEY' => $smCredential->api_key,
+                        'X-API-SECRET' => $smCredential->api_secret
+                    ],
+                ]
+            );
+        } catch (GuzzleException $exception) {
+            throw new SparkAPIResponseException($exception->getMessage());
+        }
         return $this->resultStatusChecker->checkApiResult(json_decode((string)$request->getBody(), true));
+
     }
 
     private function getCredentials()

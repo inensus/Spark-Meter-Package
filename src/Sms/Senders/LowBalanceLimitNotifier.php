@@ -2,9 +2,9 @@
 
 namespace Inensus\SparkMeter\Sms\Senders;
 
+use App\Sms\Senders\SmsSender;
 
-
-class LowBalanceLimitNotifier extends SparkSmsSender
+class LowBalanceLimitNotifier extends SmsSender
 {
     protected $references = [
         'header' => 'SparkSmsLowBalanceHeader',
