@@ -9,6 +9,8 @@ import SmsSettingRepository from './SmsSettingRepository'
 import SyncSettingRepository from './SyncSettingRepository'
 import SmsBodiesRepository from './SmsBodiesRepository'
 import SmsVariableDefaultValueRepository from './SmsVariableDefaultValueRepository'
+import SalesAccountRepository from './SalesAccountRepository'
+import SmFeedbackWordRepository from './SmFeedbackWordRepository'
 const repositories = {
     'credential':CredentialRepository,
     'customer':CustomerRepository,
@@ -20,7 +22,9 @@ const repositories = {
     'smsSetting': SmsSettingRepository,
     'syncSetting': SyncSettingRepository,
     'smsBodies':SmsBodiesRepository,
-    'smsVariableDefaultValue':SmsVariableDefaultValueRepository
+    'smsVariableDefaultValue':SmsVariableDefaultValueRepository,
+    'salesAccount':SalesAccountRepository,
+    'feedBackWord':SmFeedbackWordRepository
 }
 export default {
     get: name => repositories[name]
