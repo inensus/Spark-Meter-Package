@@ -30,6 +30,11 @@ let routes = [
         meta: { layout: 'default' },
     },
     {
+        path: '/spark-meters/sm-sales-account',
+        component: require('./plugins/spark-meter/js/components/SalesAccount/SalesAccountList').default,
+        meta: { layout: 'default' },
+    },
+    {
         path: '/spark-meters/sm-setting',
         component: require('./plugins/spark-meter/js/components/Setting/Setting').default,
         meta: { layout: 'default' },

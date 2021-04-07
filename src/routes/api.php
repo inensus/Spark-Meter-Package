@@ -39,6 +39,12 @@ Route::group(['prefix' => 'spark-meters'], function () {
         Route::get('/sync-check', 'SmTariffController@checkSync');
         Route::get('/count', 'SmTariffController@count');
     });
+    Route::group(['prefix' => 'sm-sales-account'], function () {
+        Route::get('/', 'SmSalesAccountController@index');
+        Route::get('/sync', 'SmSalesAccountController@sync');
+        Route::get('/sync-check', 'SmSalesAccountController@checkSync');
+        Route::get('/count', 'SmSalesAccountController@count');
+    });
     Route::group(['prefix' => 'sm-setting'], function () {
         Route::get('/', 'SmSettingController@index');
         Route::group(['prefix' => 'sms-setting'], function () {
@@ -54,5 +60,10 @@ Route::group(['prefix' => 'spark-meters'], function () {
         Route::group(['prefix' => 'sync-setting'], function () {
             Route::put('/', 'SmSyncSettingController@update');
         });
+        Route::group(['prefix' => 'feedback-word'], function () {
+            Route::get('/', 'SmSmsFeedbackController@index');
+            Route::put('/{smsFeedbackWord}', 'SmSmsFeedbackController@update');
+        });
+
     });
 });
