@@ -154,7 +154,7 @@
                                             <div v-for="(smsBody,index) in smsBodiesService.meterResetFeedbackList"
                                                  :key="index">
                                                 <sms-body
-                                                        ref="smsBody_sms_ref"
+                                                        ref="smsBody_meter_ref"
                                                         :sms-variable-default-values="smsVariableDefaultValueService.list"
                                                         :sms-body="smsBody"/>
                                             </div>
