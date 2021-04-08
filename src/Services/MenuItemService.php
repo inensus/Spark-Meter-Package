@@ -2,24 +2,13 @@
 
 namespace Inensus\SparkMeter\Services;
 
-use App\Models\MenuItems;
+
 
 class MenuItemService
 {
-    private $menuItems;
-
-    public function __construct(MenuItems $menuItems)
-    {
-        $this->menuItems = $menuItems;
-    }
 
     public function createMenuItems()
     {
-        $menuItem = $this->menuItems->newQuery()->where('name', 'Spark Meter')->first();
-        if ($menuItem) {
-            return [];
-        }
-
         $menuItem = [
             'name' => 'Spark Meter',
             'url_slug' => '',
@@ -38,7 +27,6 @@ class MenuItemService
             'url_slug' => '/spark-meters/sm-site/page/1',
         ];
         array_push($subMenuItems, $subMenuItem2);
-
 
         $subMenuItem3 = [
             'name' => 'Meter Models',
