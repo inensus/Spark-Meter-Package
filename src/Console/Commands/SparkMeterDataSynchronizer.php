@@ -5,6 +5,7 @@ namespace Inensus\SparkMeter\Console\Commands;
 use App\Jobs\SmsProcessor;
 use App\Models\Address\Address;
 use App\Models\User;
+use App\Models\Cluster;
 use App\Sms\Senders\SmsConfigs;
 use App\Sms\SmsTypes;
 use Carbon\Carbon;
@@ -31,6 +32,7 @@ class SparkMeterDataSynchronizer extends Command
     private $smSyncActionService;
     private $smTransactionService;
     private $address;
+    private $cluster;
 
     public function __construct(
         SiteService $smSiteService,
@@ -40,7 +42,8 @@ class SparkMeterDataSynchronizer extends Command
         TransactionService $smTransactionService,
         CustomerService $smCustomerService,
         SmSyncActionService $smSyncActionService,
-        Address $address
+        Address $address,
+        Cluster $cluster
     ) {
         parent::__construct();
         $this->smSiteService = $smSiteService;
@@ -51,6 +54,7 @@ class SparkMeterDataSynchronizer extends Command
         $this->smSyncActionService = $smSyncActionService;
         $this->smSyncSettingService = $smSyncSettingService;
         $this->address = $address;
+        $this->cluster=$cluster;
     }
 
     public function handle(): void
@@ -71,10 +75,11 @@ class SparkMeterDataSynchronizer extends Command
                 if ($syncAction->attempts >= $syncSetting->max_attempts) {
                     $nextSync = Carbon::parse($syncAction->next_sync)->addHours(2);
                     $syncAction->next_sync = $nextSync;
-                    $adminAddress = $this->address->newQuery()->whereHasMorph(
-                        'owner',
-                        [User::class]
-                    )->first();
+                    $cluster = $this->cluster->newQuery()->with('manager')->first();
+                    if(!$cluster){
+                        return true;
+                    }
+                    $adminAddress = $this->address->whereHasMorph('owner', [$cluster->manager])->first();
                     if (!$adminAddress) {
                         return true;
                     }
