@@ -82,47 +82,17 @@ class InstallSparkMeterPackage extends Command
     public function handle(): void
     {
         $this->info('Installing Spark Meter Integration Package\n');
-
-        $this->info('Copying migrations\n');
-        $this->call('vendor:publish', [
-            '--provider' => "Inensus\SparkMeter\Providers\SparkMeterServiceProvider",
-            '--tag' => "migrations"
-        ]);
-
-        $this->info('Creating database tables\n');
-        $this->call('migrate');
-
+        $this->publishMigrations();
+        $this->createDatabaseTables();
         $this->packageInstallationService->createDefaultSettingRecords();
-
-        $this->info('Copying vue files\n');
-        $this->call('vendor:publish', [
-            '--provider' => "Inensus\SparkMeter\Providers\SparkMeterServiceProvider",
-            '--tag' => "vue-components",
-            '--force' => true,
-        ]);
-
+        $this->publishVueFiles();
         $this->insertSparkMeterApi->registerSparkMeterManufacturer();
         $this->credentialService->createSmCredentials();
-
-        $this->call('plugin:add', [
-            'name' => "SparkMeter",
-            'composer_name' => "inensus/spark-meter",
-            'description' => "Spark meters integration package for MicroPowerManager",
-        ]);
+        $this->createPluginRecord();
         $this->call('routes:generate');
-
-        $menuItems = $this->menuItemService->createMenuItems();
-        if (array_key_exists('menuItem', $menuItems)) {
-            $this->call('menu-items:generate', [
-                'menuItem' => $menuItems['menuItem'],
-                'subMenuItems' => $menuItems['subMenuItems'],
-            ]);
-        }
-
+        $this->createMenuItems();
         $this->call('sidebar:generate');
-
         $this->info('Package installed successfully..');
-
         $connections = $this->customerService->checkConnectionAvailability();
         if (!$this->siteService->checkLocationAvailability()) {
             $this->warn('------------------------------');
@@ -133,6 +103,43 @@ class InstallSparkMeterPackage extends Command
             $this->warn('------------------------------');
             $this->warn("Spark Meter package needs least one Connection Group and one Connection Type.");
             $this->warn("Before you get Customers from Spark Meter please check them in #Connection# section.");
+        }
+    }
+    private function publishMigrations(){
+        $this->info('Copying migrations\n');
+        $this->call('vendor:publish', [
+            '--provider' => "Inensus\SparkMeter\Providers\SparkMeterServiceProvider",
+            '--tag' => "migrations"
+        ]);
+    }
+    private function createDatabaseTables()
+    {
+        $this->info('Creating database tables\n');
+        $this->call('migrate');
+    }
+    private function publishVueFiles(){
+
+        $this->info('Copying vue files\n');
+        $this->call('vendor:publish', [
+            '--provider' => "Inensus\SparkMeter\Providers\SparkMeterServiceProvider",
+            '--tag' => "vue-components",
+            '--force' => true,
+        ]);
+    }
+    private function createPluginRecord(){
+        $this->call('plugin:add', [
+            'name' => "SparkMeter",
+            'composer_name' => "inensus/spark-meter",
+            'description' => "Spark meters integration package for MicroPowerManager",
+        ]);
+    }
+    private function createMenuItems(){
+        $menuItems = $this->menuItemService->createMenuItems();
+        if (array_key_exists('menuItem', $menuItems)) {
+            $this->call('menu-items:generate', [
+                'menuItem' => $menuItems['menuItem'],
+                'subMenuItems' => $menuItems['subMenuItems'],
+            ]);
         }
     }
 }
