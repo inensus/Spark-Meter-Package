@@ -150,7 +150,6 @@ class SparkMeterApi implements IManufacturerAPI
         TransactionDataContainer $transactionContainer,
         $transactionResult = []
     ) {
-
         $manufacturerTransaction = $this->smTransaction->newQuery()->create([
             'transaction_id' => $transactionResult['transaction_id'],
             'site_id' => $transactionResult['site_id'],
@@ -158,32 +157,6 @@ class SparkMeterApi implements IManufacturerAPI
             'status' => $transactionResult['status'],
             'external_id' => $transactionResult['external_id']
         ]);
-
-        $transaction = $this->transaction->newQuery()->with(
-            'originalAirtel',
-            'originalVodacom',
-            'orginalAgent',
-            'originalThirdParty'
-        )->find($transactionContainer->transaction->id);
-
-        if ($transaction->originalAirtel) {
-            $transaction->originalAirtel->associate($manufacturerTransaction);
-            $transaction->originalAirtel->save();
-        } else {
-            if ($transaction->originalVodacom) {
-                $transaction->originalVodacom->associate($manufacturerTransaction);
-                $transaction->originalVodacom->save();
-            } else {
-                if ($transaction->orginalAgent) {
-                    $transaction->orginalAgent->associate($manufacturerTransaction);
-                    $transaction->orginalAgent->save();
-                } else {
-                    if ($transaction->originalThirdParty) {
-                        $transaction->originalThirdParty->associate($manufacturerTransaction);
-                        $transaction->originalThirdParty->save();
-                    }
-                }
-            }
-        }
+        $transactionContainer->transaction->originalTransaction()->associate($manufacturerTransaction)->save();
     }
 }
