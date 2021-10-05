@@ -13,6 +13,6 @@ class SmSyncSetting extends BaseModel
     }
     public function setting()
     {
-        return $this->morphOne(SteamaSetting::class, 'setting');
+        return $this->morphOne(SmSetting::class, 'setting');
     }
 }
