@@ -162,11 +162,10 @@ class CustomerService implements ISynchronizeService
                 'active' => $customerData['active'],
                 'meter_tariff_name' => $customerData['meter_tariff_name'],
                 'name' => $customerData['name'],
-                'code' => $customerData['code'],
                 'coords' => $customerData['coords'],
                 'address' => $customerData['address']
             ];
-            if ($customerData['phone_number']){
+            if ($customerData['phone_number']) {
                 $putParams['phone_number'] = $customerData['phone_number'];
             }
             $sparkCustomerId = $this->sparkMeterApiRequests->put('/customers/' . $customerId, $putParams, $siteId);
@@ -489,6 +488,7 @@ class CustomerService implements ISynchronizeService
                 $phone = $customer['phone_number'] == null ? 'NA' : $customer['phone_number'];
                 $customerHash = $this->modelHasher($customer, $phone);
                 if ($registeredSparkCustomer) {
+
                     $customer['syncStatus'] = $customerHash === $registeredSparkCustomer->hash ?
                         SyncStatus::SYNCED : SyncStatus::MODIFIED;
                     $relatedPerson = $people->find($registeredSparkCustomer->mpm_customer_id);
@@ -500,6 +500,7 @@ class CustomerService implements ISynchronizeService
                 $customer['registeredSparkCustomer'] = $registeredSparkCustomer;
                 return $customer;
             });
+
             $customerSyncStatus = $sparkCustomersCollection->whereNotIn('syncStatus', 1)->count();
 
             if ($customerSyncStatus) {
@@ -523,9 +524,10 @@ class CustomerService implements ISynchronizeService
     {
 
         return $this->smTableEncryption->makeHash([
-            $model['name'],
+            trim($model['name']),
             $params[0],
-            $model['meters'][0]['current_tariff_name'],
+            strval($model['credit_balance']),
+            trim($model['meters'][0]['current_tariff_name']),
             $model['meters'][0]['serial'],
 
         ]);
@@ -583,9 +585,9 @@ class CustomerService implements ISynchronizeService
 
     public function resetMeter($customer)
     {
-        $rootUrl = '/customers/'.$customer->customer_id.'/reset-meter';
+        $rootUrl = '/customers/' . $customer->customer_id . '/reset-meter';
         try {
-            $this->sparkMeterApiRequests->post($rootUrl,null,$customer->site->site_id);
+            $this->sparkMeterApiRequests->post($rootUrl, null, $customer->site->site_id);
         } catch (SparkAPIResponseException $e) {
             Log::critical('Spark meter customer meter reset failed.', ['Error :' => $e->getMessage()]);
             throw  new SparkAPIResponseException($e->getMessage());
@@ -596,10 +598,11 @@ class CustomerService implements ISynchronizeService
     {
         $person = $this->person::with(['addresses'])
             ->whereHas('addresses', static function ($q) use ($phoneNumber) {
-                    $q->where('phone', $phoneNumber);
-                }
+                $q->where('phone', $phoneNumber);
+            }
             )->first();
 
-        return $this->smCustomer->newQuery()->with(['site','mpmPerson.meters.meter'])->where('mpm_customer_id',$person->id)->first();
+        return $this->smCustomer->newQuery()->with(['site', 'mpmPerson.meters.meter'])->where('mpm_customer_id',
+            $person->id)->first();
     }
 }
