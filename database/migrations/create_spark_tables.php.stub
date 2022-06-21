@@ -153,7 +153,7 @@ class CreateSparkTables extends Migration
         if (!Schema:: hasTable('sm_sms_notified_customers')) {
             Schema::create('sm_sms_notified_customers', function (Blueprint $table) {
                 $table->increments('id');
-                $table->integer('customer_id');
+                $table->string('customer_id');
                 $table->string('notify_type');
                 $table->string('notify_id')->nullable()->unique();
                 $table->timestamps();

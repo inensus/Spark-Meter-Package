@@ -343,32 +343,34 @@ class TariffService implements ISynchronizeService
                         'site_id' => $tariffs['site_id'],
                         'hash' => $tariff['hash']
                     ]);
-                    $tariffs['site_data']->filter(function ($tariff) {
-                        return $tariff['syncStatus'] === SyncStatus::MODIFIED;
-                    })->each(function ($tariff) use ($tariffs) {
-                        is_null($tariff['relatedTariff']) ?
-                            $this->createRelatedTariff($tariff) : $this->updateRelatedTariff(
-                                $tariff,
-                                $tariff['relatedTariff']
-                            );
 
-                        $tariff['registeredSparkTariff']->update([
-                            'flat_load_limit' => array_key_exists(
-                                "flat_load_limit",
-                                $tariff
-                            ) ? $tariff['flat_load_limit'] : $tariff['registeredSparkTariff']['flat_load_limit'],
-                            'plan_duration' => array_key_exists(
-                                "plan_duration",
-                                $tariff
-                            ) ? $tariff['plan_duration'] : $tariff['registeredSparkTariff']['plan_duration'],
-                            'plan_price' => array_key_exists(
-                                "plan_price",
-                                $tariff
-                            ) ? $tariff['plan_price'] : $tariff['registeredSparkTariff']['plan_price'],
-                            'site_id' => $tariffs['site_id'],
-                            'hash' => $tariff['hash']
-                        ]);
-                    });
+                });
+                $tariffs['site_data']->filter(function ($tariff) {
+                    return $tariff['syncStatus'] === SyncStatus::MODIFIED;
+                })->each(function ($tariff) use ($tariffs) {
+
+                    is_null($tariff['relatedTariff']) ?
+                        $this->createRelatedTariff($tariff) : $this->updateRelatedTariff(
+                        $tariff,
+                        $tariff['relatedTariff']
+                    );
+
+                    $tariff['registeredSparkTariff']->update([
+                        'flat_load_limit' => array_key_exists(
+                            "flat_load_limit",
+                            $tariff
+                        ) ? $tariff['flat_load_limit'] : $tariff['registeredSparkTariff']['flat_load_limit'],
+                        'plan_duration' => array_key_exists(
+                            "plan_duration",
+                            $tariff
+                        ) ? $tariff['plan_duration'] : $tariff['registeredSparkTariff']['plan_duration'],
+                        'plan_price' => array_key_exists(
+                            "plan_price",
+                            $tariff
+                        ) ? $tariff['plan_price'] : $tariff['registeredSparkTariff']['plan_price'],
+                        'site_id' => $tariffs['site_id'],
+                        'hash' => $tariff['hash']
+                    ]);
                 });
             });
             $this->smSyncActionService->updateSyncAction($syncAction, $synSetting, true);
@@ -406,7 +408,7 @@ class TariffService implements ISynchronizeService
                 return $tariff['tariff_type'] == 'flat';
             });
             $sparkTariffs = $this->smTariff->newQuery()->where('site_id', $site->site_id)->get();
-            $tariffs = $this->smTariff->newQuery()->get();
+            $tariffs = $this->meterTariff->newQuery()->get();
             $sparkTariffsCollection->transform(function ($tariff) use ($sparkTariffs, $tariffs) {
 
                 $registeredSparkTariff = $sparkTariffs->firstWhere('tariff_id', $tariff['id']);
